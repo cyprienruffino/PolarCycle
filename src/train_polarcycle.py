@@ -25,31 +25,30 @@ class Trainer:
         self.sess = tf.Session()
         self.epoch = epoch
 
+        self.__setup_datasets(rgb_path, polar_path)
         self.__build_models()
         self.__create_objectives()
         self.__create_optimizers()
-        self.__setup_datasets(rgb_path, polar_path)
         self.__setup_logging(logs_dir)
         self.__setup_checkpoints(checkpoints_dir)
 
     def __setup_datasets(self, rgb_path, polar_path):
-        self.dataA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size)
-        self.dataB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size)
+        self.dataA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, 3)
+        self.dataB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size, 4)
 
         self.iterA = self.dataA.get_next()
         self.iterB = self.dataB.get_next()
+        print(self.iterA)
 
     def __build_models(self):
         # A: RGB
         # B: Pol
-        self.inpA = tf.placeholder(tf.float32, (None, self.cfg.image_size, self.cfg.image_size, 3), name="inpA")
-        self.inpB = tf.placeholder(tf.float32, (None, self.cfg.image_size, self.cfg.image_size, 4), name="inpB")
 
-        self.discA = self.cfg.discA(self.inpA, **self.cfg.discA_args)
-        self.discB = self.cfg.discB(self.inpB, **self.cfg.discB_args)
+        self.discA = self.cfg.discA(self.iterA, **self.cfg.discA_args)
+        self.discB = self.cfg.discB(self.iterB, **self.cfg.discB_args)
 
-        self.genA = self.cfg.genA(self.inpB, **self.cfg.genA_args)
-        self.genB = self.cfg.genB(self.inpA, **self.cfg.genB_args)
+        self.genA = self.cfg.genA(self.iterB, **self.cfg.genA_args)
+        self.genB = self.cfg.genB(self.iterA, **self.cfg.genB_args)
 
         self.out_gA = self.genA.output
         self.out_gB = self.genB.output
@@ -73,13 +72,13 @@ class Trainer:
         # Objectives
         with tf.name_scope("gA_objective"):
             self.ganA_obj = tf.reduce_mean(tf.squared_difference(self.ganA, 1))
-            self.cycA_obj = tf.reduce_mean(tf.abs(self.inpA - self.cycA))
+            self.cycA_obj = tf.reduce_mean(tf.abs(self.iterA - self.cycA))
 
             self.gA_obj = self.ganA_obj + self.cfg.cyc_factor * self.cycA_obj
 
         with tf.name_scope("gB_objective"):
             self.ganB_obj = tf.reduce_mean(tf.squared_difference(self.ganB, 1))
-            self.cycB_obj = tf.reduce_mean(tf.abs(self.inpB - self.cycB))
+            self.cycB_obj = tf.reduce_mean(tf.abs(self.iterB - self.cycB))
 
             self.gB_obj = self.ganB_obj + self.cfg.cyc_factor * self.cycB_obj
 
@@ -122,11 +121,11 @@ class Trainer:
 
         with tf.name_scope("dA_objective"):
             self.dA_obj = (tf.reduce_mean(tf.square(self.ganA)) + tf.reduce_mean(
-                tf.squared_difference(self.discA.output, 1))) / 2
+                tf.math.squared_difference(self.discA.output, 1))) / 2
 
         with tf.name_scope("dB_objective"):
             self.dB_obj = (tf.reduce_mean(tf.square(self.ganB)) + tf.reduce_mean(
-                tf.squared_difference(self.discB.output, 1))) / 2
+                tf.math.squared_difference(self.discB.output, 1))) / 2
 
     def __create_optimizers(self):
         optimizer = self.cfg.optimizer(**self.cfg.optimizer_args)
@@ -187,8 +186,6 @@ class Trainer:
         self.writer.add_summary(weightout, self.epoch)
 
     def __log_images(self):
-        self.sess.run(self.dataA.initializer)
-        self.sess.run(self.dataB.initializer)
         true_A = self.sess.run(self.iterA)[:1]
         true_B = self.sess.run(self.iterB)[:1]
 
@@ -209,37 +206,30 @@ class Trainer:
     def run(self):
         # Setting up the training
         self.sess.run(tf.global_variables_initializer())
-        epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
+        self.sess.run(self.dataA.initializer)
+        self.sess.run(self.dataB.initializer)
 
+        epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
         # Do the actual training
         for epoch in range(self.cfg.epochs):
             self.epoch = epoch
-            self.sess.run(self.dataA.initializer)
-            self.sess.run(self.dataB.initializer)
-
             bar = progressbar.ProgressBar(maxvalue=epoch_iters, redirect_stdout=True)
-            for it in bar(range(epoch_iters)):
-                batchA = self.sess.run(self.iterA)
-                batchB = self.sess.run(self.iterB)
 
+            for it in bar(range(epoch_iters)):
                 # Training dA
-                _, dA_err = self.sess.run([self.dA_cost, self.discA_summ],
-                                          feed_dict={self.inpA: batchA, self.inpB: batchB})
+                _, dA_err = self.sess.run([self.dA_cost, self.discA_summ])
 
                 # Training dB
-                _, dB_err = self.sess.run([self.dB_cost, self.discB_summ],
-                                          feed_dict={self.inpA: batchA, self.inpB: batchB})
+                _, dB_err = self.sess.run([self.dB_cost, self.discB_summ])
 
                 # Training gA
                 _, ganA_err, cycA_err, totalA_err = \
-                    self.sess.run([self.gA_cost, self.ganA_summ, self.cycA_summ, self.totalA_summ],
-                                  feed_dict={self.inpA: batchA, self.inpB: batchB})
+                    self.sess.run([self.gA_cost, self.ganA_summ, self.cycA_summ, self.totalA_summ])
 
                 # Training gB
                 _, ganB_err, cycB_err, norm_AS_err, conic_dist_err, totalB_err = \
                     self.sess.run([self.gB_cost, self.ganB_summ, self.cycB_summ, self.norm_AS_summ,
-                                   self.conic_dist_summ, self.totalB_summ],
-                                  feed_dict={self.inpA: batchA, self.inpB: batchB})
+                                   self.conic_dist_summ, self.totalB_summ])
 
                 # Logging losses
                 t = epoch_iters * epoch + it
@@ -268,6 +258,8 @@ def do_run(filepath, rgb_path, polar_path, extension=""):
 
     print("\nRunning " + name + "\n")
 
+    if not os.path.exists("./runs"):
+        os.mkdir("./runs")
     os.mkdir("./runs/" + name)
     shutil.copy2(filepath, './runs/' + name + "/config.py")
     checkpoints_dir = "./runs/" + name + "/checkpoints/"

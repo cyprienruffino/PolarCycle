@@ -5,9 +5,9 @@ from tensorflow.python.keras import layers as kl
 import layers as cl
 
 
-def create_network(inp, channels_in, channels_out, name):
+def create_network(inp, channels_out, name):
     with tf.name_scope(name):
-        inp_lay = kl.Input((None, None, channels_in,), tensor=inp, name="Z")
+        inp_lay = kl.Input(tensor=inp)
 
         # Encoder
         layer = kl.Conv2D(32, 3, padding="same", strides=1)(inp_lay)
