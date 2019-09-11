@@ -22,12 +22,11 @@ class Trainer:
 
     def __init__(self, cfg: AbstractConfig, rgb_path, polar_path, logs_dir, checkpoints_dir, epoch=0):
         self.cfg = cfg
-        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
         self.epoch = epoch
 
         if cfg.num_gpu == 0:
-            self.device_0 = "/device:CPU:0"
-            self.device_1 = "/device:CPU:0"
+            self.device_0 = "/cpu:0"
+            self.device_1 = "/cpu:0"
         elif cfg.num_gpu == 1:
             self.device_0 = "/device:GPU:0"
             self.device_1 = "/device:GPU:0"
@@ -35,12 +34,15 @@ class Trainer:
             self.device_0 = "/device:GPU:0"
             self.device_1 = "/device:GPU:1"
 
+
         self.__setup_datasets(rgb_path, polar_path)
         self.__build_models()
         self.__create_objectives()
         self.__create_optimizers()
         self.__setup_logging(logs_dir)
         self.__setup_checkpoints(checkpoints_dir)
+
+        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
     def __setup_datasets(self, rgb_path, polar_path):
         self.dataA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, 3)
