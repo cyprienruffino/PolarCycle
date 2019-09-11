@@ -178,7 +178,7 @@ class Trainer:
         self.writer.flush()
 
     def __setup_checkpoints(self, checkpoints_dir):
-        self.checkpoint_dir = checkpoints_dir
+        self.checkpoints_dir = checkpoints_dir
         os.mkdir(checkpoints_dir)
 
     def __log_weights_histograms(self):
