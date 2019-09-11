@@ -16,7 +16,7 @@ class CustomConfig(AbstractConfig):
             10 ** 8)
 
         # Training settings
-        self.batch_size = 1
+        self.batch_size = 2
         self.epochs = 250
         self.dataset_size = 100
         self.image_size = 500
