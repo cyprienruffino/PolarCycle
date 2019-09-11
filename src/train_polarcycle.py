@@ -33,6 +33,7 @@ class Trainer:
         else:
             self.device_0 = "/gpu:0"
             self.device_1 = "/gpu:1"
+        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
         self.__setup_datasets(rgb_path, polar_path)
         self.__build_models()
@@ -41,27 +42,30 @@ class Trainer:
         self.__setup_logging(logs_dir)
         self.__setup_checkpoints(checkpoints_dir)
 
-        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        self.sess.run(tf.global_variables_initializer())
 
     def __setup_datasets(self, rgb_path, polar_path):
-        self.dataA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, 3)
-        self.dataB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size, 4)
+        iterA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, 3)
+        iterB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size, 4)
 
-        self.iterA = self.dataA.get_next()
-        self.iterB = self.dataB.get_next()
+        self.sess.run(iterA.initializer)
+        self.sess.run(iterB.initializer)
+
+        self.inputA = iterA.get_next()
+        self.inputB = iterB.get_next()
 
     def __build_models(self):
         # A: RGB
         # B: Pol
         with tf.device(self.device_0):
-            self.genA = self.cfg.genA(self.iterB, **self.cfg.genA_args)
-            self.discA = self.cfg.discA(self.iterA, **self.cfg.discA_args)
+            self.genA = self.cfg.genA(self.inputB, **self.cfg.genA_args)
+            self.discA = self.cfg.discA(self.inputA, **self.cfg.discA_args)
         self.out_gA = self.genA.output
         self.out_dA = self.discA.output
 
         with tf.device(self.device_1):
-            self.genB = self.cfg.genB(self.iterA, **self.cfg.genB_args)
-            self.discB = self.cfg.discB(self.iterB, **self.cfg.discB_args)
+            self.genB = self.cfg.genB(self.inputA, **self.cfg.genB_args)
+            self.discB = self.cfg.discB(self.inputB, **self.cfg.discB_args)
         self.out_gB = self.genB.output
         self.out_dB = self.discB.output
 
@@ -82,7 +86,7 @@ class Trainer:
         with tf.device(self.device_0):
             with tf.name_scope("gA_objective"):
                 self.ganA_obj = tf.reduce_mean(tf.squared_difference(self.ganA, 1))
-                self.cycA_obj = tf.reduce_mean(tf.abs(self.iterA - self.cycA))
+                self.cycA_obj = tf.reduce_mean(tf.abs(self.inputA - self.cycA))
 
                 self.gA_obj = self.ganA_obj + self.cfg.cyc_factor * self.cycA_obj
 
@@ -93,7 +97,7 @@ class Trainer:
         with tf.device(self.device_1):
             with tf.name_scope("gB_objective"):
                 self.ganB_obj = tf.reduce_mean(tf.squared_difference(self.ganB, 1))
-                self.cycB_obj = tf.reduce_mean(tf.abs(self.iterB - self.cycB))
+                self.cycB_obj = tf.reduce_mean(tf.abs(self.inputB - self.cycB))
 
                 self.gB_obj = self.ganB_obj + self.cfg.cyc_factor * self.cycB_obj
 
@@ -151,34 +155,30 @@ class Trainer:
 
     def __setup_logging(self, logs_dir):
         # Logging costs
-        self.cycA_summ = tf.summary.scalar("Cyclic_recoA", self.cycA_obj)
-        self.ganA_summ = tf.summary.scalar("GenA_gan", self.ganA_obj)
-        self.totalA_summ = tf.summary.scalar("GenA_sum", self.gA_obj)
-        self.discA_summ = tf.summary.scalar("DiscA_gan", self.dA_obj)
-
-        self.cycB_summ = tf.summary.scalar("Cyclic_recoB", self.cycB_obj)
-        self.ganB_summ = tf.summary.scalar("GenB_gan", self.ganB_obj)
-        self.totalB_summ = tf.summary.scalar("GenB_sum", self.gB_obj)
-        self.discB_summ = tf.summary.scalar("DiscB_gan", self.dB_obj)
-
-        self.norm_AS_summ = tf.summary.scalar("IminAS_norm", self.norm_AS_obj)
-        self.conic_dist_summ = tf.summary.scalar("Conic_dist", self.conic_dist)
-
-        # Logging images
-        self.trueApl = tf.placeholder(tf.float32, shape=(1, self.cfg.image_size, self.cfg.image_size, 3))
-        self.trueBpl = tf.placeholder(tf.float32, shape=(1, self.cfg.image_size, self.cfg.image_size, 4))
-
-        self.imgsumm = tf.summary.merge([
-            tf.summary.image("GT_A", self.trueApl),
-            tf.summary.image("GT_B", self.trueBpl),
-            tf.summary.image("Gen_A", self.genA(self.trueBpl)),
-            tf.summary.image("Gen_B", self.genB(self.trueApl)),
-            tf.summary.image("Rec_A", self.genA(self.genB(self.trueApl))),
-            tf.summary.image("Rec_B", self.genB(self.genA(self.trueBpl)))
+        self.gen_costs = tf.summary.merge([
+            tf.summary.scalar("Cyclic_recoA", self.cycA_obj),
+            tf.summary.scalar("Cyclic_recoB", self.cycB_obj),
+            tf.summary.scalar("GenA_gan", self.ganA_obj),
+            tf.summary.scalar("GenB_gan", self.ganB_obj),
+            tf.summary.scalar("GenA_sum", self.gA_obj),
+            tf.summary.scalar("GenB_sum", self.gB_obj),
+            tf.summary.scalar("IminAS_norm", self.norm_AS_obj),
+            tf.summary.scalar("Conic_dist", self.conic_dist)
         ])
 
-        # Logging weights histograms
-        self.weightsum = tf.summary.merge([
+        self.disc_costs = tf.summary.merge([
+            tf.summary.scalar("DiscA_gan", self.dA_obj),
+            tf.summary.scalar("DiscB_gan", self.dB_obj)
+        ])
+
+        # Logging images and weight histograms
+        self.epoch_end = tf.summary.merge([
+            tf.summary.image("GT_A", self.inputA),
+            tf.summary.image("GT_B", self.inputB),
+            tf.summary.image("Gen_A", self.genA(self.inputB)),
+            tf.summary.image("Gen_B", self.genB(self.inputA)),
+            tf.summary.image("Rec_A", self.genA(self.genB(self.inputA))),
+            tf.summary.image("Rec_B", self.genB(self.genA(self.inputB))),
             create_weight_histograms(self.genA, "GenA"),
             create_weight_histograms(self.genB, "GenB"),
             create_weight_histograms(self.discA, "DiscA"),
@@ -194,21 +194,6 @@ class Trainer:
         self.checkpoints_dir = checkpoints_dir
         os.mkdir(checkpoints_dir)
 
-    def __log_weights_histograms(self):
-        weightout = self.sess.run(self.weightsum)
-        self.writer.add_summary(weightout, self.epoch)
-
-    def __log_images(self):
-        true_A = self.sess.run(self.iterA)[:1]
-        true_B = self.sess.run(self.iterB)[:1]
-
-        imgout = self.sess.run(
-            self.imgsumm, feed_dict={
-                self.trueApl: true_A,
-                self.trueBpl: true_B
-            })
-        self.writer.add_summary(imgout, self.epoch)
-
     def __checkpoint_models(self):
         self.genA.save(self.checkpoints_dir + os.sep + "genA_" + str(self.epoch) + ".hdf5", include_optimizer=False)
         self.genB.save(self.checkpoints_dir + os.sep + "genB_" + str(self.epoch) + ".hdf5", include_optimizer=False)
@@ -217,12 +202,8 @@ class Trainer:
         self.discB.save(self.checkpoints_dir + os.sep + "discB_" + str(self.epoch) + ".hdf5", include_optimizer=False)
 
     def run(self):
-        # Setting up the training
-        self.sess.run(tf.global_variables_initializer())
-        self.sess.run(self.dataA.initializer)
-        self.sess.run(self.dataB.initializer)
-
         epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
+
         # Do the actual training
         for epoch in range(self.cfg.epochs):
             self.epoch = epoch
@@ -237,32 +218,16 @@ class Trainer:
             ], maxvalue=epoch_iters, redirect_stdout=True)
 
             for it in bar(range(epoch_iters)):
-                # Training discriminators
-                _, _, dA_err, dB_err = self.sess.run([self.dA_cost, self.dB_cost, self.discA_summ, self.discB_summ])
+                _, _, disc_costs = self.sess.run([self.dA_cost, self.dB_cost, self.disc_costs])
+                _, _, gen_costs = self.sess.run([self.gA_cost, self.gB_cost, self.gen_costs])
 
-                # Training generators
-                _, _, ganA_err, ganB_err, cycA_err, cycB_err, norm_AS_err, conic_dist_err, totalA_err, totalB_err  = \
-                    self.sess.run([self.gA_cost, self.gB_cost, self.ganA_summ, self.ganB_summ, self.cycA_summ,
-                                   self.cycB_summ, self.norm_AS_summ, self.conic_dist_summ, self.totalA_summ,
-                                   self.totalB_summ])
-
-                # Logging losses
                 t = epoch_iters * epoch + it
-                self.writer.add_summary(dA_err, t)
-                self.writer.add_summary(dB_err, t)
-                self.writer.add_summary(ganA_err, t)
-                self.writer.add_summary(ganB_err, t)
-                self.writer.add_summary(cycA_err, t)
-                self.writer.add_summary(cycB_err, t)
-                self.writer.add_summary(totalA_err, t)
-                self.writer.add_summary(totalB_err, t)
-                self.writer.add_summary(norm_AS_err, t)
-                self.writer.add_summary(conic_dist_err, t)
+                self.writer.add_summary(disc_costs, t)
+                self.writer.add_summary(gen_costs, t)
 
-            self.__log_images()
-            self.__log_weights_histograms()
-            self.__checkpoint_models()
+            self.writer.add_summary(self.sess.run(self.epoch_end), self.epoch)
             self.writer.flush()
+            self.__checkpoint_models()
 
         # Run end
         self.writer.close()
@@ -284,6 +249,8 @@ def do_run(filepath, rgb_path, polar_path, extension=""):
     trainer = Trainer(config, rgb_path, polar_path, logs_dir, checkpoints_dir)
     trainer.run()
 
+    tf.reset_default_graph()
+
 
 def main():
     if len(sys.argv) < 4:
@@ -292,7 +259,7 @@ def main():
 
     filepath = sys.argv[1]
     rgb_path = sys.argv[2]
-    polar_path = sys.argv[2]
+    polar_path = sys.argv[3]
 
     if os.path.isfile(filepath):
         do_run(filepath, rgb_path, polar_path)
