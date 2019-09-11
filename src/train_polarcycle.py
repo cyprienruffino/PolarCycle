@@ -50,7 +50,6 @@ class Trainer:
 
         self.iterA = self.dataA.get_next()
         self.iterB = self.dataB.get_next()
-        print(self.iterA)
 
     def __build_models(self):
         # A: RGB
@@ -209,7 +208,7 @@ class Trainer:
                 self.trueApl: true_A,
                 self.trueBpl: true_B
             })
-        self.writer.add_summary(imgout)
+        self.writer.add_summary(imgout, self.epoch)
 
     def __checkpoint_models(self):
         self.genA.save(self.checkpoints_dir + os.sep + "genA_" + str(self.epoch) + ".hdf5", include_optimizer=False)
@@ -239,20 +238,14 @@ class Trainer:
             ], maxvalue=epoch_iters, redirect_stdout=True)
 
             for it in bar(range(epoch_iters)):
-                # Training dA
-                _, dA_err = self.sess.run([self.dA_cost, self.discA_summ])
+                # Training discriminators
+                _, _, dA_err, dB_err = self.sess.run([self.dA_cost, self.dB_cost, self.discA_summ, self.discB_summ])
 
-                # Training dB
-                _, dB_err = self.sess.run([self.dB_cost, self.discB_summ])
-
-                # Training gA
-                _, ganA_err, cycA_err, totalA_err = \
-                    self.sess.run([self.gA_cost, self.ganA_summ, self.cycA_summ, self.totalA_summ])
-
-                # Training gB
-                _, ganB_err, cycB_err, norm_AS_err, conic_dist_err, totalB_err = \
-                    self.sess.run([self.gB_cost, self.ganB_summ, self.cycB_summ, self.norm_AS_summ,
-                                   self.conic_dist_summ, self.totalB_summ])
+                # Training generators
+                _, _, ganA_err, ganB_err, cycA_err, cycB_err, norm_AS_err, conic_dist_err, totalA_err, totalB_err  = \
+                    self.sess.run([self.gA_cost, self.gB_cost, self.ganA_summ, self.ganB_summ, self.cycA_summ,
+                                   self.cycB_summ, self.norm_AS_summ, self.conic_dist_summ, self.totalA_summ,
+                                   self.totalB_summ])
 
                 # Logging losses
                 t = epoch_iters * epoch + it
@@ -268,6 +261,7 @@ class Trainer:
                 self.writer.add_summary(conic_dist_err, t)
 
             self.__log_images()
+            self.__log_weights_histograms()
             self.__checkpoint_models()
             self.writer.flush()
 
