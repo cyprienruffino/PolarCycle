@@ -178,7 +178,7 @@ class Trainer:
         self.writer.flush()
 
     def __setup_checkpoints(self, checkpoints_dir):
-        self.checkpoint_dir = checkpoints_dir
+        self.checkpoints_dir = checkpoints_dir
         os.mkdir(checkpoints_dir)
 
     def __log_weights_histograms(self):
@@ -213,7 +213,15 @@ class Trainer:
         # Do the actual training
         for epoch in range(self.cfg.epochs):
             self.epoch = epoch
-            bar = progressbar.ProgressBar(maxvalue=epoch_iters, redirect_stdout=True)
+
+            bar = progressbar.ProgressBar(widgets=[
+                "Epoch " + str(epoch), ' ',
+                progressbar.Percentage(), ' ',
+                progressbar.SimpleProgress(format='(%s)' % progressbar.SimpleProgress.DEFAULT_FORMAT),
+                progressbar.Bar(), ' ',
+                progressbar.Timer(), ' ',
+                progressbar.AdaptiveETA()
+            ], maxvalue=epoch_iters, redirect_stdout=True)
 
             for it in bar(range(epoch_iters)):
                 # Training dA
