@@ -20,10 +20,20 @@ import tensorflow as tf
 
 class Trainer:
 
-    def __init__(self, cfg: AbstractConfig, rgb_path, polar_path, logs_dir, checkpoints_dir, epoch=0, ):
+    def __init__(self, cfg: AbstractConfig, rgb_path, polar_path, logs_dir, checkpoints_dir, epoch=0):
         self.cfg = cfg
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
         self.epoch = epoch
+
+        if cfg.num_gpu == 0:
+            self.device_0 = "/device:CPU:0"
+            self.device_1 = "/device:CPU:0"
+        elif cfg.num_gpu == 1:
+            self.device_0 = "/device:GPU:0"
+            self.device_1 = "/device:GPU:0"
+        else:
+            self.device_0 = "/device:GPU:0"
+            self.device_1 = "/device:GPU:1"
 
         self.__setup_datasets(rgb_path, polar_path)
         self.__build_models()
@@ -43,98 +53,101 @@ class Trainer:
     def __build_models(self):
         # A: RGB
         # B: Pol
-
-        self.discA = self.cfg.discA(self.iterA, **self.cfg.discA_args)
-        self.discB = self.cfg.discB(self.iterB, **self.cfg.discB_args)
-
-        self.genA = self.cfg.genA(self.iterB, **self.cfg.genA_args)
-        self.genB = self.cfg.genB(self.iterA, **self.cfg.genB_args)
-
+        with tf.device(self.device_0):
+            self.genA = self.cfg.genA(self.iterB, **self.cfg.genA_args)
+            self.discA = self.cfg.discA(self.iterA, **self.cfg.discA_args)
         self.out_gA = self.genA.output
-        self.out_gB = self.genB.output
-
         self.out_dA = self.discA.output
+
+        with tf.device(self.device_1):
+            self.genB = self.cfg.genB(self.iterA, **self.cfg.genB_args)
+            self.discB = self.cfg.discB(self.iterB, **self.cfg.discB_args)
+        self.out_gB = self.genB.output
         self.out_dB = self.discB.output
 
-        with tf.name_scope("cycA"):
-            self.cycA = self.genA(self.out_gB)
+        with tf.device(self.device_0):
+            with tf.name_scope("cycA"):
+                self.cycA = self.genA(self.out_gB)
+            with tf.name_scope("ganA"):
+                self.ganA = self.discA(self.out_gA)
 
-        with tf.name_scope("cycB"):
-            self.cycB = self.genB(self.out_gA)
-
-        with tf.name_scope("ganA"):
-            self.ganA = self.discA(self.out_gA)
-
-        with tf.name_scope("ganB"):
-            self.ganB = self.discB(self.out_gB)
+        with tf.device(self.device_1):
+            with tf.name_scope("cycB"):
+                self.cycB = self.genB(self.out_gA)
+            with tf.name_scope("ganB"):
+                self.ganB = self.discB(self.out_gB)
 
     def __create_objectives(self):
         # Objectives
-        with tf.name_scope("gA_objective"):
-            self.ganA_obj = tf.reduce_mean(tf.squared_difference(self.ganA, 1))
-            self.cycA_obj = tf.reduce_mean(tf.abs(self.iterA - self.cycA))
+        with tf.device(self.device_0):
+            with tf.name_scope("gA_objective"):
+                self.ganA_obj = tf.reduce_mean(tf.squared_difference(self.ganA, 1))
+                self.cycA_obj = tf.reduce_mean(tf.abs(self.iterA - self.cycA))
 
-            self.gA_obj = self.ganA_obj + self.cfg.cyc_factor * self.cycA_obj
+                self.gA_obj = self.ganA_obj + self.cfg.cyc_factor * self.cycA_obj
 
-        with tf.name_scope("gB_objective"):
-            self.ganB_obj = tf.reduce_mean(tf.squared_difference(self.ganB, 1))
-            self.cycB_obj = tf.reduce_mean(tf.abs(self.iterB - self.cycB))
+            with tf.name_scope("dA_objective"):
+                self.dA_obj = (tf.reduce_mean(tf.square(self.ganA)) + tf.reduce_mean(
+                    tf.math.squared_difference(self.discA.output, 1))) / 2
 
-            self.gB_obj = self.ganB_obj + self.cfg.cyc_factor * self.cycB_obj
+        with tf.device(self.device_1):
+            with tf.name_scope("gB_objective"):
+                self.ganB_obj = tf.reduce_mean(tf.squared_difference(self.ganB, 1))
+                self.cycB_obj = tf.reduce_mean(tf.abs(self.iterB - self.cycB))
 
-            x = (self.out_gB + 1) * 128
+                self.gB_obj = self.ganB_obj + self.cfg.cyc_factor * self.cycB_obj
 
-            img_I0 = x[:, :, :, 0]
-            img_I45 = x[:, :, :, 1]
-            img_I90 = x[:, :, :, 2]
-            img_I135 = x[:, :, :, 3]
+                x = (self.out_gB + 1) * 128
 
-            S0 = tf.add(img_I0, img_I90)
-            S1 = tf.subtract(img_I0, img_I90)
-            S2 = tf.subtract(img_I45, img_I135)
+                img_I0 = x[:, :, :, 0]
+                img_I45 = x[:, :, :, 1]
+                img_I90 = x[:, :, :, 2]
+                img_I135 = x[:, :, :, 3]
 
-            if self.cfg.norm_AS:
-                A = tf.cast(0.5 * np.array([[[1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1]]] * self.cfg.batch_size),
-                            tf.float32)
-                S = tf.cast(tf.reshape(tf.stack([S0, S1, S2]), shape=[self.cfg.batch_size, 3, -1]), tf.float32)
-                I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, 4, -1]), tf.float32)
+                S0 = tf.add(img_I0, img_I90)
+                S1 = tf.subtract(img_I0, img_I90)
+                S2 = tf.subtract(img_I45, img_I135)
 
-                AS = tf.matmul(A, S)
-                delta1 = I - AS
-                norm_AS = tf.norm(delta1) / tf.add(tf.norm(I), tf.norm(AS))
+                if self.cfg.norm_AS:
+                    A = tf.cast(0.5 * np.array([[[1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1]]] * self.cfg.batch_size),
+                                tf.float32)
+                    S = tf.cast(tf.reshape(tf.stack([S0, S1, S2]), shape=[self.cfg.batch_size, 3, -1]), tf.float32)
+                    I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, 4, -1]), tf.float32)
 
-                self.norm_AS_obj = self.cfg.lmbda * norm_AS
-                self.gB_obj += self.norm_AS_obj
-            else:
-                self.norm_AS_obj = tf.constant(0)
+                    AS = tf.matmul(A, S)
+                    delta1 = I - AS
+                    norm_AS = tf.norm(delta1) / tf.add(tf.norm(I), tf.norm(AS))
 
-            if self.cfg.conic_dist:
-                phi = tf.subtract(tf.div(tf.sqrt(S1 ** 2 + S2 ** 2), S0), 1)
-                phi = tf.maximum(phi, 0)
+                    self.norm_AS_obj = self.cfg.lmbda * norm_AS
+                    self.gB_obj += self.norm_AS_obj
+                else:
+                    self.norm_AS_obj = tf.constant(0)
 
-                conic_dist = tf.div(tf.norm(phi), 500 * 500)
+                if self.cfg.conic_dist:
+                    phi = tf.subtract(tf.div(tf.sqrt(S1 ** 2 + S2 ** 2), S0), 1)
+                    phi = tf.maximum(phi, 0)
 
-                self.conic_dist = self.cfg.mu * conic_dist
-                self.gB_obj += self.conic_dist
-            else:
-                self.conic_dist = tf.constant(0)
+                    conic_dist = tf.div(tf.norm(phi), 500 * 500)
 
-        with tf.name_scope("dA_objective"):
-            self.dA_obj = (tf.reduce_mean(tf.square(self.ganA)) + tf.reduce_mean(
-                tf.math.squared_difference(self.discA.output, 1))) / 2
+                    self.conic_dist = self.cfg.mu * conic_dist
+                    self.gB_obj += self.conic_dist
+                else:
+                    self.conic_dist = tf.constant(0)
 
-        with tf.name_scope("dB_objective"):
-            self.dB_obj = (tf.reduce_mean(tf.square(self.ganB)) + tf.reduce_mean(
-                tf.math.squared_difference(self.discB.output, 1))) / 2
+            with tf.name_scope("dB_objective"):
+                self.dB_obj = (tf.reduce_mean(tf.square(self.ganB)) + tf.reduce_mean(
+                    tf.math.squared_difference(self.discB.output, 1))) / 2
 
     def __create_optimizers(self):
         optimizer = self.cfg.optimizer(**self.cfg.optimizer_args)
 
-        self.gA_cost = optimizer.minimize(self.gA_obj, var_list=self.genA.trainable_weights)
-        self.gB_cost = optimizer.minimize(self.gB_obj, var_list=self.genB.trainable_weights)
+        with tf.device(self.device_0):
+            self.gA_cost = optimizer.minimize(self.gA_obj, var_list=self.genA.trainable_weights)
+            self.dA_cost = optimizer.minimize(self.dA_obj, var_list=self.discA.trainable_weights)
 
-        self.dA_cost = optimizer.minimize(self.dA_obj, var_list=self.discA.trainable_weights)
-        self.dB_cost = optimizer.minimize(self.dB_obj, var_list=self.discB.trainable_weights)
+        with tf.device(self.device_1):
+            self.gB_cost = optimizer.minimize(self.gB_obj, var_list=self.genB.trainable_weights)
+            self.dB_cost = optimizer.minimize(self.dB_obj, var_list=self.discB.trainable_weights)
 
     def __setup_logging(self, logs_dir):
         # Logging costs

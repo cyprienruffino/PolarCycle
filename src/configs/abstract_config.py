@@ -6,6 +6,7 @@ class AbstractConfig:
     def __init__(self, name):
 
         # Run metadata
+        self.num_gpu = None
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
             10 ** 8)
