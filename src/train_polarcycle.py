@@ -28,11 +28,11 @@ class Trainer:
             self.device_0 = "/cpu:0"
             self.device_1 = "/cpu:0"
         elif cfg.num_gpu == 1:
-            self.device_0 = "/device:GPU:0"
-            self.device_1 = "/device:GPU:0"
+            self.device_0 = "/gpu:0"
+            self.device_1 = "/gpu:0"
         else:
-            self.device_0 = "/device:GPU:0"
-            self.device_1 = "/device:GPU:1"
+            self.device_0 = "/gpu:0"
+            self.device_1 = "/gpu:1"
 
 
         self.__setup_datasets(rgb_path, polar_path)
