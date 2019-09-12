@@ -13,8 +13,7 @@ def _parse(filename, channels):
     return image_resized
 
 
-def get_iterator(path, dataset_size, batch_size, channels):
-    print(path)
+def iterator(path, dataset_size, batch_size, channels):
     filenames = list(map(lambda p: os.path.join(path, p), os.listdir(path)))[:dataset_size]
     files = tf.constant(filenames)
     dataset = tf.data.Dataset.from_tensor_slices(files)\
