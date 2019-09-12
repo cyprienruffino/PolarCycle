@@ -4,7 +4,7 @@ Extended CycleGAN for RGB-to-polarimetric image transfer
 Supports up to 2 GPUs
 
 ## Usage 
-python train_polarcycle.py config_file rgb_path polar_path
+python src/train_polarcycle.py config_file rgb_path polar_path
 
 Outputs a TensorBoard log file and the models checkpoints in the 'runs' directory 
 
