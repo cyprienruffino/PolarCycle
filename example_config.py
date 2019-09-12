@@ -11,7 +11,7 @@ class CustomConfig(AbstractConfig):
         super().__init__(name)
 
         # Run metadata
-        self.num_gpu = 8
+        self.num_gpu = 2
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
             10 ** 8)
