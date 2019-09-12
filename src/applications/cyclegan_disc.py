@@ -7,7 +7,7 @@ from layers import InstanceNormalization
 
 def create_network(inp, channels, name):
     with tf.name_scope(name):
-        inp_layer = kl.Input((None, None, channels), tensor=inp)
+        inp_layer = kl.Input(tensor=inp)
 
         # Discriminator
         layer = kl.Conv2D(64, 4, padding="same", strides=2)(inp_layer)

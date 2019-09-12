@@ -14,6 +14,8 @@ class AbstractConfig:
         # Training settings
         self.batch_size = None
         self.epochs = None
+        self.rgb_channels = None
+        self.polar_channels = None
         self.dataset_size = None
         self.image_size = None
         self.cyc_factor = None

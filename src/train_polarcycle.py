@@ -18,7 +18,18 @@ import numpy as np
 import tensorflow as tf
 
 
-class Trainer:
+def custom_bar(epoch, epoch_iters):
+    return progressbar.ProgressBar(widgets=[
+        "Epoch " + str(epoch), ' ',
+        progressbar.Percentage(), ' ',
+        progressbar.SimpleProgress(format='(%s)' % progressbar.SimpleProgress.DEFAULT_FORMAT),
+        progressbar.Bar(), ' ',
+        progressbar.Timer(), ' ',
+        progressbar.AdaptiveETA()
+    ], maxvalue=epoch_iters, redirect_stdout=True)
+
+
+class PolarCycle:
 
     def __init__(self, cfg: AbstractConfig, rgb_path, polar_path, logs_dir, checkpoints_dir, epoch=0):
         self.cfg = cfg
@@ -33,6 +44,7 @@ class Trainer:
         else:
             self.device_0 = "/gpu:0"
             self.device_1 = "/gpu:1"
+
         self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
 
         self.__setup_datasets(rgb_path, polar_path)
@@ -45,8 +57,9 @@ class Trainer:
         self.sess.run(tf.global_variables_initializer())
 
     def __setup_datasets(self, rgb_path, polar_path):
-        iterA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, 3)
-        iterB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size, 4)
+        iterA = from_images.get_iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, self.cfg.rgb_channels)
+        iterB = from_images.get_iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size,
+                                         self.cfg.polar_channels)
 
         self.sess.run(iterA.initializer)
         self.sess.run(iterB.initializer)
@@ -55,8 +68,7 @@ class Trainer:
         self.inputB = iterB.get_next()
 
     def __build_models(self):
-        # A: RGB
-        # B: Pol
+        # A: RGB, B: Pol
         with tf.device(self.device_0):
             self.genA = self.cfg.genA(self.inputB, **self.cfg.genA_args)
             self.discA = self.cfg.discA(self.inputA, **self.cfg.discA_args)
@@ -108,19 +120,21 @@ class Trainer:
                 img_I90 = x[:, :, :, 2]
                 img_I135 = x[:, :, :, 3]
 
-                S0 = tf.add(img_I0, img_I90)
-                S1 = tf.subtract(img_I0, img_I90)
-                S2 = tf.subtract(img_I45, img_I135)
+                S0 = img_I0 + img_I90
+                S1 = img_I0 - img_I90
+                S2 = img_I45 - img_I135
 
                 if self.cfg.norm_AS:
                     A = tf.cast(0.5 * np.array([[[1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1]]] * self.cfg.batch_size),
                                 tf.float32)
-                    S = tf.cast(tf.reshape(tf.stack([S0, S1, S2]), shape=[self.cfg.batch_size, 3, -1]), tf.float32)
-                    I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, 4, -1]), tf.float32)
+                    S = tf.cast(
+                        tf.reshape(tf.stack([S0, S1, S2]), shape=[self.cfg.batch_size, self.cfg.rgb_channels, -1]),
+                        tf.float32)
+                    I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, self.cfg.polar_channels, -1]), tf.float32)
 
                     AS = tf.matmul(A, S)
                     delta1 = I - AS
-                    norm_AS = tf.norm(delta1) / tf.add(tf.norm(I), tf.norm(AS))
+                    norm_AS = tf.norm(delta1) / (tf.norm(I) + tf.norm(AS))
 
                     self.norm_AS_obj = self.cfg.lmbda * norm_AS
                     self.gB_obj += self.norm_AS_obj
@@ -128,10 +142,10 @@ class Trainer:
                     self.norm_AS_obj = tf.constant(0)
 
                 if self.cfg.conic_dist:
-                    phi = tf.subtract(tf.div(tf.sqrt(S1 ** 2 + S2 ** 2), S0), 1)
+                    phi = ((tf.sqrt(S1 ** 2 + S2 ** 2) / S0) - 1)
                     phi = tf.maximum(phi, 0)
 
-                    conic_dist = tf.div(tf.norm(phi), 500 * 500)
+                    conic_dist = tf.norm(phi) / (self.cfg.image_size ** 2)
 
                     self.conic_dist = self.cfg.mu * conic_dist
                     self.gB_obj += self.conic_dist
@@ -201,23 +215,14 @@ class Trainer:
         self.discA.save(self.checkpoints_dir + os.sep + "discA_" + str(self.epoch) + ".hdf5", include_optimizer=False)
         self.discB.save(self.checkpoints_dir + os.sep + "discB_" + str(self.epoch) + ".hdf5", include_optimizer=False)
 
-    def run(self):
+    def train(self):
         epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
 
         # Do the actual training
         for epoch in range(self.cfg.epochs):
             self.epoch = epoch
 
-            bar = progressbar.ProgressBar(widgets=[
-                "Epoch " + str(epoch), ' ',
-                progressbar.Percentage(), ' ',
-                progressbar.SimpleProgress(format='(%s)' % progressbar.SimpleProgress.DEFAULT_FORMAT),
-                progressbar.Bar(), ' ',
-                progressbar.Timer(), ' ',
-                progressbar.AdaptiveETA()
-            ], maxvalue=epoch_iters, redirect_stdout=True)
-
-            for it in bar(range(epoch_iters)):
+            for it in custom_bar(epoch, epoch_iters)(range(epoch_iters)):
                 _, _, disc_costs = self.sess.run([self.dA_cost, self.dB_cost, self.disc_costs])
                 _, _, gen_costs = self.sess.run([self.gA_cost, self.gB_cost, self.gen_costs])
 
@@ -231,6 +236,7 @@ class Trainer:
 
         # Run end
         self.writer.close()
+        self.sess.close()
 
 
 def do_run(filepath, rgb_path, polar_path, extension=""):
@@ -239,15 +245,15 @@ def do_run(filepath, rgb_path, polar_path, extension=""):
 
     print("\nRunning " + name + "\n")
 
-    if not os.path.exists("./runs"):
-        os.mkdir("./runs")
-    os.mkdir("./runs/" + name)
-    shutil.copy2(filepath, './runs/' + name + "/config.py")
-    checkpoints_dir = "./runs/" + name + "/checkpoints/"
-    logs_dir = "./runs/" + name + "/logs/"
+    if not os.path.exists("runs"):
+        os.mkdir("runs")
+    os.mkdir(os.path.join("runs", name))
+    shutil.copy2(filepath, os.path.join("runs", name, "config.py"))
+    checkpoints_dir = os.path.join("runs", name, "checkpoints")
+    logs_dir = os.path.join("runs", name, "logs")
 
-    trainer = Trainer(config, rgb_path, polar_path, logs_dir, checkpoints_dir)
-    trainer.run()
+    trainer = PolarCycle(config, rgb_path, polar_path, logs_dir, checkpoints_dir)
+    trainer.train()
 
     tf.reset_default_graph()
 

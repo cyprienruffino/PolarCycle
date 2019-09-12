@@ -19,6 +19,8 @@ class CustomConfig(AbstractConfig):
         # Training settings
         self.batch_size = 2
         self.epochs = 400
+        self.rgb_channels = 3
+        self.polar_channels = 4
         self.dataset_size = 100
         self.image_size = 500
         self.cyc_factor = 10
