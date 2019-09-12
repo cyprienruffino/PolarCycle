@@ -151,8 +151,8 @@ class PolarCycle:
             self.dB_cost = optimizer.minimize(self.dB_obj, var_list=self.discB.trainable_weights)
 
     def __setup_logging(self, logs_dir):
-        # Logging costs
-        self.gen_costs = tf.summary.merge([
+        # Logging images and weight histograms
+        self.summaries = tf.summary.merge([
             tf.summary.scalar("Cyclic_recoA", self.cycA_obj),
             tf.summary.scalar("Cyclic_recoB", self.cycB_obj),
             tf.summary.scalar("GenA_gan", self.ganA_obj),
@@ -160,16 +160,9 @@ class PolarCycle:
             tf.summary.scalar("GenA_sum", self.gA_obj),
             tf.summary.scalar("GenB_sum", self.gB_obj),
             tf.summary.scalar("IminAS_norm", self.norm_AS_obj),
-            tf.summary.scalar("Conic_dist", self.conic_dist)
-        ])
-
-        self.disc_costs = tf.summary.merge([
+            tf.summary.scalar("Conic_dist", self.conic_dist),
             tf.summary.scalar("DiscA_gan", self.dA_obj),
-            tf.summary.scalar("DiscB_gan", self.dB_obj)
-        ])
-
-        # Logging images and weight histograms
-        self.epoch_end = tf.summary.merge([
+            tf.summary.scalar("DiscB_gan", self.dB_obj),
             tf.summary.image("GT_A", self.inputA),
             tf.summary.image("GT_B", self.inputB),
             tf.summary.image("Gen_A", self.genA(self.inputB)),
@@ -179,7 +172,7 @@ class PolarCycle:
             create_weight_histograms(self.genA, "GenA"),
             create_weight_histograms(self.genB, "GenB"),
             create_weight_histograms(self.discA, "DiscA"),
-            create_weight_histograms(self.discB, "DiscB")
+            create_weight_histograms(self.discB, "DiscB"),
         ])
 
         self.writer = tf.summary.FileWriter(
@@ -204,14 +197,10 @@ class PolarCycle:
             self.epoch = epoch
 
             for it in custom_bar(epoch, epoch_iters)(range(epoch_iters)):
-                _, _, disc_costs = self.sess.run([self.dA_cost, self.dB_cost, self.disc_costs])
-                _, _, gen_costs = self.sess.run([self.gA_cost, self.gB_cost, self.gen_costs])
+                self.sess.run([self.dA_cost, self.dB_cost])
+                self.sess.run([self.gA_cost, self.gB_cost])
 
-                t = epoch_iters * epoch + it
-                self.writer.add_summary(disc_costs, t)
-                self.writer.add_summary(gen_costs, t)
-
-            self.writer.add_summary(self.sess.run(self.epoch_end), self.epoch)
+            self.writer.add_summary(self.sess.run(self.summaries), self.epoch)
             self.writer.flush()
             self.__checkpoint_models()
 

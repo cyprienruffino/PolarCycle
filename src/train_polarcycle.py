@@ -10,6 +10,9 @@ import sys
 from utils.config import loadconfig
 from PolarCycle import PolarCycle
 
+import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 
 def do_run(filepath, rgb_path, polar_path, extension=""):
     name = filepath.split('/')[-1].replace('.py', '') + extension
