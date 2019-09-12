@@ -11,14 +11,14 @@ class CustomConfig(AbstractConfig):
         super().__init__(name)
 
         # Run metadata
-        self.num_gpu = 8
+        self.num_gpu = 2
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
             10 ** 8)
 
         # Training settings
         self.batch_size = 2
-        self.epochs = 250
+        self.epochs = 400
         self.dataset_size = 100
         self.image_size = 500
         self.cyc_factor = 10

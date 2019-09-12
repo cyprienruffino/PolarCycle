@@ -17,6 +17,7 @@ def ResidualBlock(filters, nb_layers=2, kernel_size=3, normalization="batchnorm"
         for i in range(nb_layers - 1):
             layer = kl.Conv2D(filters, kernel_size=kernel_size, padding="same")(layer)
             layer = normalizer()(layer)
+            layer = kl.Activation("relu")(layer)
 
         layer = kl.Conv2D(filters, kernel_size=kernel_size, padding="same")(layer)
         layer = normalizer()(layer)
