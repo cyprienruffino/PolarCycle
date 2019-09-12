@@ -1,4 +1,6 @@
 import hashlib
+
+import numpy as np
 import tensorflow as tf
 
 from applications import cyclegan_disc, cyclegan_gen_9
@@ -27,6 +29,7 @@ class CustomConfig(AbstractConfig):
 
         self.norm_AS = True
         self.conic_dist = True
+        self.calibration_matrix = 0.5 * np.array([[[1, 1, 0], [1, 0, 1], [1, -1, 0], [1, 0, -1]]] * self.batch_size)
 
         self.lmbda = 1
         self.mu = 1
@@ -34,7 +37,7 @@ class CustomConfig(AbstractConfig):
         # Optimizers
         self.optimizer = tf.train.AdamOptimizer
         self.optimizer_args = {
-            "learning_rate": 0.0002
+            "learning_rate": 0.00002
         }
 
         # Network setup

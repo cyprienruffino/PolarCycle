@@ -109,12 +109,13 @@ class PolarCycle:
                 S2 = img_I45 - img_I135
 
                 if self.cfg.norm_AS:
-                    A = tf.cast(0.5 * np.array([[[1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1]]] * self.cfg.batch_size),
-                                tf.float32)
+                    A = tf.cast(self.cfg.calibration_matrix, tf.float32)
+                    I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, self.cfg.polar_channels, -1]), tf.float32)
+
                     S = tf.cast(
                         tf.reshape(tf.stack([S0, S1, S2]), shape=[self.cfg.batch_size, self.cfg.rgb_channels, -1]),
-                        tf.float32)
-                    I = tf.cast(tf.reshape(x, shape=[self.cfg.batch_size, self.cfg.polar_channels, -1]), tf.float32)
+                        tf.float32
+                    )
 
                     AS = tf.matmul(A, S)
                     delta1 = I - AS

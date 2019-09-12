@@ -25,6 +25,7 @@ class AbstractConfig:
         self.conic_dist = None
         self.lmbda = None
         self.mu = None
+        self.calibration_matrix = None
 
         # Optimizers
         self.optimizer = None
