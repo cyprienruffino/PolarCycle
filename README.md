@@ -16,6 +16,3 @@ See example_config.py
 - tensorflow >= 1.10
 - python-opencv
 - progressbar2
-
-## TODO
-Decreasing learning rate (currently Adam)
