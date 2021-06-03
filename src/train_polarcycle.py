@@ -1,52 +1,41 @@
-import warnings
-
-warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.simplefilter(action='ignore', category=UserWarning)
+# warnings.filterwarnings("ignore")
 
 import os
-import shutil
 import sys
 
-from utils.config import loadconfig
-from PolarCycle import PolarCycle
-
-import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-
-def do_run(filepath, rgb_path, polar_path, extension=""):
-    name = filepath.split('/')[-1].replace('.py', '') + extension
-    config = loadconfig(filepath)
-
-    print("\nRunning " + name + "\n")
-
-    if not os.path.exists("runs"):
-        os.mkdir("runs")
-    os.mkdir(os.path.join("runs", name))
-    shutil.copy2(filepath, os.path.join("runs", name, "config.py"))
-    checkpoints_dir = os.path.join("runs", name, "checkpoints")
-    logs_dir = os.path.join("runs", name, "logs")
-
-    model = PolarCycle(config, rgb_path, polar_path, logs_dir, checkpoints_dir)
-    model.train()
-    model.reset_session()
+from models.abstractmodel import AbstractModel
+from utils.config import loadconfig, AbstractConfig
+from utils.paths import Paths
 
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage : python train_polarcycle.py config_file rgb_path polar_path")
+        print("Usage : python train_polarcycle.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
         exit(1)
 
-    filepath = sys.argv[1]
-    rgb_path = sys.argv[2]
-    polar_path = sys.argv[3]
+    configpath = sys.argv[1]
+    dataA_path = sys.argv[2]
+    dataB_path = sys.argv[3]
 
-    if os.path.isfile(filepath):
-        do_run(filepath, rgb_path, polar_path)
-    else:
-        for run in os.listdir(filepath):
-            if ".py" in run:
-                do_run(filepath + "/" + run, rgb_path, polar_path)
+    if len(sys.argv) == 5:
+        print("Usage : python train_polarcycle.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
+        exit(1)
+
+    resume_path = None
+    epoch = 0
+
+    if len(sys.argv) == 6:
+        resume_path = sys.argv[4]
+        epoch = int(sys.argv[5])
+
+    paths = Paths(configpath, dataA_path, dataB_path, resume_path)
+
+    for run in paths.list_configs():
+        cfg: AbstractConfig = loadconfig(run)
+        model: AbstractModel = cfg.model(cfg, paths, resume_path, epoch)
+
+        model.train()
+        model.reset_session()
 
 
 if __name__ == "__main__":

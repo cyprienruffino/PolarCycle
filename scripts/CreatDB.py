@@ -7,6 +7,8 @@ Created on Wed Aug 28 13:19:59 2019
 """
 
 # -*- coding: utf-8 -*-
+import sys
+
 from progressbar import progressbar
 
 """
@@ -24,30 +26,21 @@ import cv2
 import tensorflow as tf
 
 # **************************************************************************************************
-# on recupere le chemein absolu du répertoire mère
 path = os.getcwd()
-# taille des images apres redimensionnement
 res = (500, 500)
-# le nombre exact d'image à utiliser apres traitement(filtrage)
-max_img = 100
-# utiliser pour eviter de diviser par zeros
 epsilon = 1e-5
-# batch_size = 1
 batch_size = 1
-# img_height = 500
 img_height = 500
-# img_width
 img_width = 500
-# img_layer_B
 img_layer_B = 4
-# repertoire contenant tous les images 
+
 path_input = "./input/rgb2pol/trainBB"
 if not os.path.exists(path_input):
     print("****")
     print("Le repertoire contenant tous les images trainBB n'est pas trouver")
     print("****")
 # repertoire contenant les images séléctionner
-path_output = "./DB" + str(max_img)
+path_output = "./DB"
 if not os.path.exists(path_output):
     os.makedirs(path_output)
 
@@ -87,16 +80,10 @@ ComputeErrC2 = EvalImageConstraintC2(x)
 
 
 # **************************************************************************************************
-def ProcessInputImgB():
-    # On stoque sur X tous les images
-
-    # on se place sur le répertoire trainBB
+def ProcessInputImgB(max_img=100):
     os.chdir(path_input)
-    # on stoque sur ch la list de tous les images terminant par I0.png
     ch = fnmatch.filter(os.listdir(), '*' + '*I90.png')
-    # on convertis la liste en tableau array
     ch = np.array(ch)
-    # on compte le nombre d'image
     nb = len(ch)
     print("nb img : ", nb)
     j = 0
@@ -104,10 +91,9 @@ def ProcessInputImgB():
     with tf.Session() as sess:
         sess.run(init)
 
-        for i in progressbar(range(nb)):
+        for i in progressbar(range(2000)):
             os.chdir(path)
             os.chdir(path_input)
-            # on recupere l'index de tous les images
             index, _ = ch[i].split("_")
 
             I0 = "none"
@@ -130,20 +116,17 @@ def ProcessInputImgB():
 
                 merged = cv2.merge((img_I0, img_I45, img_I90, img_I135))
 
-                # normalized data to ]-1 , 1[
-
                 merged = merged / 128 - 1
                 merged = merged.reshape((batch_size, img_height, img_width, img_layer_B))
 
                 errC2Init = sess.run([ComputeErrC2], feed_dict={x: merged})
                 errC2Init = errC2Init[0]
-                #print("errC2Init : ", errC2Init)
 
-                if errC2Init == 0.0:
+                if errC2Init < 0.5:
                     os.chdir(path)
                     os.chdir(path_output)
 
-                    #print("success... ")
+                    # print("success... ")
 
                     cv2.imwrite(str(j) + "_I0.png", (img_I0).astype(np.uint8))
                     cv2.imwrite(str(j) + "_I45.png", (img_I45).astype(np.uint8))
@@ -157,4 +140,8 @@ def ProcessInputImgB():
 
 
 # --------
-ProcessInputImgB()
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print('Usage: python CreatDB.py nb_data')
+        exit(0)
+    ProcessInputImgB(int(sys.argv[1]))

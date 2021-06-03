@@ -1,53 +1,21 @@
+import os
+import sys
+
+import cv2
+import numpy as np
+import progressbar
+import tensorflow as tf
 from tensorflow.python.keras.layers import Layer, InputSpec
 from tensorflow.python.keras import initializers, regularizers, constraints
 from tensorflow.python.keras import backend as K
-import tensorflow as tf
 
 
 class InstanceNormalization(Layer):
-    """Instance normalization layer.
-    Normalize the activations of the previous layer at each step,
-    i.e. applies a transformation that maintains the mean activation
-    close to 0 and the activation standard deviation close to 1.
-    # Arguments
-    axis: Integer, the axis that should be normalized
-            (typically the features axis).
-            For instance, after a `Conv2D` layer with
-            `data_format="channels_first"`,
-            set `axis=1` in `InstanceNormalization`.
-            Setting `axis=None` will normalize all values in each
-            instance of the batch.
-            Axis 0 is the batch dimension. `axis` cannot be set to 0 to avoid errors.
-        epsilon: Small float added to variance to avoid dividing by zero.
-        center: If True, add offset of `beta` to normalized tensor.
-            If False, `beta` is ignored.
-        scale: If True, multiply by `gamma`.
-            If False, `gamma` is not used.
-            When the next layer is linear (also e.g. `nn.relu`),
-            this can be disabled since the scaling
-            will be done by the next layer.
-        beta_initializer: Initializer for the beta weight.
-        gamma_initializer: Initializer for the gamma weight.
-        beta_regularizer: Optional regularizer for the beta weight.
-        gamma_regularizer: Optional regularizer for the gamma weight.
-        beta_constraint: Optional constraint for the beta weight.
-        gamma_constraint: Optional constraint for the gamma weight.
-    # Input shape
-        Arbitrary. Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a Sequential model.
-    # Output shape
-        Same shape as input.
-    # References
-        - [Layer Normalization](https://arxiv.org/abs/1607.06450)
-        - [Instance Normalization: The Missing Ingredient for Fast Stylization](
-        https://arxiv.org/abs/1607.08022)
-    """
     def __init__(self,
                  axis=None,
                  epsilon=1e-3,
                  center=True,
-                 scale=False,
+                 scale=True,
                  beta_initializer='zeros',
                  gamma_initializer='ones',
                  beta_regularizer=None,
@@ -141,3 +109,22 @@ class InstanceNormalization(Layer):
         }
         base_config = super(InstanceNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def main(checkpoint_path, files_path, output_path):
+    mod = tf.keras.models.load_model(checkpoint_path, custom_objects={"InstanceNormalization": InstanceNormalization})
+    inp = tf.keras.layers.Input((None, None, mod.input_shape[-1]))
+    mod = tf.keras.models.Model(inp, mod(inp))
+
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+
+    for name in progressbar.ProgressBar()(os.listdir(files_path)):
+        img = (cv2.imread(os.path.join(files_path, name), cv2.IMREAD_UNCHANGED) / 127.5) - 1
+        out = (mod.predict(np.expand_dims(img, axis=0)) + 1) * 127.5
+        cv2.imwrite(os.path.join(output_path, name), out[0])
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python generate_polar.py checkpoint_path files_path output_path")
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
