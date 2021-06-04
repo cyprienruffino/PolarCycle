@@ -34,7 +34,7 @@ def iterator(path, dataset_size, batch_size, channels, npx):
     filenames = list(map(lambda p: os.path.join(path, p), os.listdir(path)))[:dataset_size]
     files = tf.constant(filenames)
 
-    dataset = tf.data.Dataset.from_tensor_slices(files) \
+    dataset = tf.compat.v1.data.Dataset.from_tensor_slices(files) \
         .map(partial(_parse, channels=channels)) \
         .map(lambda x: (x / 127.5) - 1) \
         .map(_flip) \
@@ -45,3 +45,14 @@ def iterator(path, dataset_size, batch_size, channels, npx):
         .repeat()
 
     return tf.compat.v1.data.make_initializable_iterator(dataset)
+
+
+def iterator_gen(path, channels):
+    filenames = list(map(lambda p: os.path.join(path, p), os.listdir(path)))
+    files = tf.constant(filenames)
+
+    dataset = tf.compat.v1.data.Dataset.from_tensor_slices(files) \
+        .map(partial(_parse, channels=channels)) \
+        .map(lambda x: (x / 127.5) - 1) \
+
+    return tf.compat.v1.data.make_one_shot_iterator(dataset)

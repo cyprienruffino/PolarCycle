@@ -10,7 +10,7 @@ from utils.paths import Paths
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage : python train_polarcycle.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
+        print("Usage : python train.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
         exit(1)
 
     configpath = sys.argv[1]
@@ -18,7 +18,7 @@ def main():
     dataB_path = sys.argv[3]
 
     if len(sys.argv) == 5:
-        print("Usage : python train_polarcycle.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
+        print("Usage : python train.py config_file rgb_path polar_path [path_to_checkpoints] [epoch]")
         exit(1)
 
     resume_path = None
