@@ -2,7 +2,6 @@ import os
 from functools import partial
 
 import tensorflow as tf
-import numpy as np
 
 res = [500, 500]
 
@@ -15,7 +14,7 @@ def _parse(filename, channels):
 
 
 def _flip(x):
-    # x = tf.image.random_flip_left_right(x)
+    # x = tf.compat.v1.image.random_flip_left_right(x)
     return x
 
 

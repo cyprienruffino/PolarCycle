@@ -1,5 +1,7 @@
 import warnings
 
+import ops
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 
@@ -19,8 +21,8 @@ def main(input_path, output_path):
 
     with tf.Session() as sess:
         image_iter = dataset.get_next()
-        projector = projector.projector(image_iter)
-        sess.run(tf.initialize_all_variables())
+        projector = ops.projector.projector(image_iter)
+        sess.run(tf.compat.v1.initialize_all_variables())
         for i in progressbar.progressbar(range(size)):
             projected = sess.run(projector)
             cv2.imwrite(os.path.join(output_path, str(i) + ".png"), projected)

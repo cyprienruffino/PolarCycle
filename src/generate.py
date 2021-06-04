@@ -11,7 +11,7 @@ from utils.postprocessing import revert_normalization
 
 
 def main(checkpoint_path, files_path, output_path, channels):
-    mod = tf.keras.models.load_model(checkpoint_path, custom_objects={CUSTOM_OBJECTS})
+    mod = tf.compat.v1.keras.models.load_model(checkpoint_path, custom_objects={CUSTOM_OBJECTS})
 
     inp = iterator_gen(files_path, channels)
 
