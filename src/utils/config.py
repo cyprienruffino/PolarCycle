@@ -19,6 +19,7 @@ class AbstractConfig:
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
             10 ** 8)
+        self.debug = False
 
         # Training settings
         self.model = None

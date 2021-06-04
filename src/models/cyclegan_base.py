@@ -13,7 +13,6 @@ from utils.log import custom_bar
 # warnings.simplefilter(action='ignore', category=UserWarning)
 from utils.paths import Paths
 
-DEBUG = True
 EPS = 1e-8
 
 
@@ -79,7 +78,7 @@ class CycleGANBase(AbstractModel):
 
     def dbgdt(self, tensor, name):
         # Debug tensor
-        if DEBUG:
+        if self.cfg.debug:
             self.dbgd += [
                 tf.cond(tf.math.reduce_any((tf.math.is_nan(tensor))), lambda: tf.print("NaN in disc tensor", name),
                         lambda: tf.constant(False))
@@ -87,7 +86,7 @@ class CycleGANBase(AbstractModel):
 
     def dbggt(self, tensor, name):
         # Debug tensor
-        if DEBUG:
+        if self.cfg.debug:
             self.dbgg += [
                 tf.cond(tf.math.reduce_any((tf.math.is_nan(tensor))), lambda: tf.print("NaN in gen tensor", name),
                         lambda: tf.constant(False))
@@ -105,7 +104,7 @@ class CycleGANBase(AbstractModel):
         self.inputA = iter_a.get_next()
         self.inputB = iter_b.get_next()
 
-        if DEBUG:
+        if self.cfg.debug:
             self.dbgdt(self.inputA, "InputA")
             self.dbgdt(self.inputB, "InputB")
 
@@ -161,7 +160,7 @@ class CycleGANBase(AbstractModel):
                 self.ganB = self.discB(from_pool(self.poolB, self.out_gB, self.cfg.pool_size, self.cfg.batch_size))
             self.poolB_update = update_pool(self.poolB, self.out_gB, self.cfg.pool_size, self.cfg.batch_size)
 
-        if DEBUG:
+        if self.cfg.debug:
             self.dbggt(self.out_gA, "out_GA")
             self.dbggt(self.out_gB, "out_GB")
             self.dbggt(self.out_dA, "out_DA")
@@ -202,7 +201,7 @@ class CycleGANBase(AbstractModel):
             with tf.name_scope("dB_objective"):
                 self.dB_obj = (tf.reduce_mean(self.ganB ** 2) + tf.reduce_mean((self.discB.output - 1) ** 2)) / 2
 
-            if DEBUG:
+            if self.cfg.debug:
                 self.dbggt(self.ganA_obj, "ganA_obj")
                 self.dbggt(self.ganB_obj, "ganB_obj")
                 self.dbgdt(self.ganA_obj, "ganA_obj")
