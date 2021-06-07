@@ -8,12 +8,7 @@ from data_processing import from_images
 from models.abstractmodel import AbstractModel
 from utils.log import custom_bar
 
-# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-# warnings.simplefilter(action='ignore', category=FutureWarning)
-# warnings.simplefilter(action='ignore', category=UserWarning)
 from utils.paths import Paths
-
-EPS = 1e-8
 
 
 def from_pool(pool, real, pool_size, batch_size=1):
