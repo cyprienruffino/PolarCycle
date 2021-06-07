@@ -1,6 +1,7 @@
-numpy~=1.20.3
-tensorflow~=2.5.0
-tensorboard~=2.5.0
-h5py~=3.2.1
-setuptools~=57.0.0
+numpy
+tensorflow
+tensorboard
+h5py
+setuptools
 progressbar2
+imageio

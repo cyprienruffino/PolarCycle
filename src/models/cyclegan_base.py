@@ -54,7 +54,7 @@ class CycleGANBase(AbstractModel):
         proto = tf.compat.v1.ConfigProto()
         proto.gpu_options.allow_growth = True
         # Uncomment this line if you're using GTX 2080 Ti
-        # proto.gpu_options.per_process_gpu_memory_fraction = 0.9
+        # proto.gpu_options.per_process_gpu_memory_fraction = 0.95
         proto.allow_soft_placement = True
         tf.compat.v1.experimental.output_all_intermediates(True)
         self.sess = tf.compat.v1.Session(config=proto)
@@ -269,22 +269,24 @@ class CycleGANBase(AbstractModel):
             self.genB.save(self.checkpoints_dir + os.sep + "genB_" + str(epoch) + ".hdf5", include_optimizer=True)
             self.discB.save(self.checkpoints_dir + os.sep + "discB_" + str(epoch) + ".hdf5", include_optimizer=True)
 
-    def train(self):
+    def train_step(self):
         with self.tape as tape:
-            epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
-            for epoch in range(self.start_epoch, self.cfg.epochs):
-                for mb in custom_bar(epoch, epoch_iters)(range(epoch_iters)):
-                    self.sess.run([self.dA_cost, self.dB_cost] + self.dbgd)
-                    self.sess.run([self.gA_cost, self.gB_cost] + self.dbgg)
-                    self.sess.run([self.poolA_update, self.poolB_update])
+            self.sess.run([self.dA_cost, self.dB_cost] + self.dbgd)
+            self.sess.run([self.gA_cost, self.gB_cost] + self.dbgg)
+            self.sess.run([self.poolA_update, self.poolB_update])
 
-                self.writer.add_summary(self.sess.run(self.summaries), epoch)
-                self.checkpoint_models(epoch)
-                self.sess.run(tf.compat.v1.assign(self.global_step, self.global_step + 1))
+    def train(self):
+        epoch_iters = int(self.cfg.dataset_size / self.cfg.batch_size)
+        for epoch in range(self.start_epoch, self.cfg.epochs):
+            for mb in custom_bar(epoch, epoch_iters)(range(epoch_iters)):
+                self.train_step()
+
+            self.writer.add_summary(self.sess.run(self.summaries), epoch)
+            self.checkpoint_models(epoch)
+            self.sess.run(tf.compat.v1.assign(self.global_step, self.global_step + 1))
 
         # Run end
         self.writer.close()
-        self.sess.close()
 
     def reset_session(self):
         tf.compat.v1.reset_default_graph()

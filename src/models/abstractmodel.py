@@ -27,6 +27,9 @@ class AbstractModel:
     def checkpoint_models(self, epoch):
         raise NotImplementedError
 
+    def train_step(self):
+        raise NotImplementedError
+
     def train(self):
         raise NotImplementedError
 
