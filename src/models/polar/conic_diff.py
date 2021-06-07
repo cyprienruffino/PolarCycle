@@ -1,9 +1,16 @@
 import tensorflow as tf
 
+from filesystem.paths import CycleGANPaths
 from models.polar.polar_cycle import PolarCycle
+from utils.base_configs.polarcycle_config import PolarCycleConfig
 
 
 class PolarCycleConicDiff(PolarCycle):
+    def __init__(self, cfg: PolarCycleConfig, paths: CycleGANPaths, resume=None, epoch=0):
+        super(PolarCycleConicDiff, self).__init__(cfg, paths, resume, epoch)
+        self.cfg = cfg
+        self.paths = paths
+
     def create_objectives(self):
         super(PolarCycleConicDiff, self).create_objectives()
 

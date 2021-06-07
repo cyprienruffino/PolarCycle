@@ -3,11 +3,11 @@ import hashlib
 import numpy as np
 
 from networks import cyclegan_disc, cyclegan_gen_9
-from utils.config import AbstractConfig
+from utils.base_configs.cyclegan_config import CycleGANConfig
 from networks.PolarCycleConicDiff import PolarCycleConicDiff
 
 
-class CustomConfig(AbstractConfig):
+class CustomConfig(CycleGANConfig):
 
     def __init__(self, name):
         super().__init__(name)

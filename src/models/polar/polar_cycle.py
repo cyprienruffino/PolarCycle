@@ -42,7 +42,7 @@ class PolarCycle(CycleGANBase):
         super(PolarCycle, self).create_objectives()
         self.build_S_I()
 
-        I = tf.cast(tf.reshape(self.x, shape=[self.cfg.batch_size, self.cfg.polar_channels, -1]), tf.float32)
+        I = tf.cast(tf.reshape(self.x, shape=[self.cfg.batch_size, self.cfg.dataB_channels, -1]), tf.float32)
 
         AS = tf.matmul(self.A, self.S)
         delta1 = I - AS
@@ -51,11 +51,11 @@ class PolarCycle(CycleGANBase):
         self.norm_AS_obj = self.cfg.lmbda * norm_AS
         self.gB_obj += self.norm_AS_obj
 
-        self.dbggt(I, "## I")
-        self.dbggt(AS, "## AS")
-        self.dbggt(delta1, "## delta1")
-        self.dbggt(norm_AS, "normAS")
-        self.dbggt(self.S, "##S")
+        self.__dbggt(I, "## I")
+        self.__dbggt(AS, "## AS")
+        self.__dbggt(delta1, "## delta1")
+        self.__dbggt(norm_AS, "normAS")
+        self.__dbggt(self.S, "##S")
 
     def setup_logging(self, logs_dir):
         super(PolarCycle, self).setup_logging(logs_dir)

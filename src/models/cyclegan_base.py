@@ -3,108 +3,46 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from utils.config import AbstractConfig
-from data_processing import from_images
-from models.abstractmodel import AbstractModel
-from utils.log import custom_bar
-
-from utils.paths import Paths
-
-
-def from_pool(pool, real, pool_size, batch_size=1):
-    p = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
-    num = tf.random.uniform((1,), 0, pool_size, dtype=tf.int32)[0]
-    return tf.cond(tf.equal(p, 0)[0],
-                   lambda: real,
-                   lambda: pool[num:num + batch_size])
+from filesystem.paths import CycleGANPaths
+from models.gpu_model import GPUModel
+from utils.base_configs.cyclegan_config import CycleGANConfig
+from data_processing import from_image_files
+from utils.log import custom_bar, detect_nan
+from utils.pool import from_pool, update_pool
 
 
-def update_pool(pool, real, pool_size, batch_size=1):
-    num = tf.random.uniform((1,), 0, pool_size, dtype=tf.int32)[0]
-    return tf.compat.v1.assign(pool[num:num + batch_size], real)
+class CycleGANBase(GPUModel):
 
-
-class CycleGANBase(AbstractModel):
-
-    def __init__(self, cfg: AbstractConfig, paths: Paths, resume=None, epoch=0):
+    def __init__(self, cfg: CycleGANConfig, paths: CycleGANPaths, resume=None, epoch=0):
+        super(CycleGANBase, self).__init__(cfg, paths, resume, epoch)
         self.cfg = cfg
         self.paths = paths
-        self.start_epoch = epoch
-        self.checkpoints_dir = self.paths.checkpoints_dir
 
         self.dbgg = []
         self.dbgd = []
 
-        if cfg.num_gpu == 0:
-            self.device_0 = "/cpu:0"
-            self.device_1 = "/cpu:0"
-        elif cfg.num_gpu == 1:
-            self.device_0 = "/gpu:0"
-            self.device_1 = "/gpu:0"
-        else:
-            self.device_0 = "/gpu:0"
-            self.device_1 = "/gpu:1"
+    def __dbgdt(self, tensor, name):
+        self.dbgd += [
+            detect_nan(tensor, name)
+        ]
 
-        tf.compat.v1.disable_eager_execution()
-        proto = tf.compat.v1.ConfigProto()
-        proto.gpu_options.allow_growth = True
-        # Uncomment this line if you're using GTX 2080 Ti
-        # proto.gpu_options.per_process_gpu_memory_fraction = 0.95
-        proto.allow_soft_placement = True
-        tf.compat.v1.experimental.output_all_intermediates(True)
-        self.sess = tf.compat.v1.Session(config=proto)
-        tf.compat.v1.keras.backend.set_session(self.sess)
+    def __dbggt(self, tensor, name):
+        self.dbgg += [
+            detect_nan(tensor, name)
+        ]
 
-        self.tape = tf.GradientTape()
-
-        self.setup_datasets(self.paths.dataA_path, self.paths.dataB_path)
-        self.build_models()
-
-        self.global_step = tf.Variable(epoch, trainable=False)
-        self.sess.run(tf.compat.v1.variables_initializer([self.global_step]))
-        if resume is not None:
-            self.resume_models(resume, epoch)
-
-        self.create_objectives()
-
-        self.create_optimizers()
-        self.setup_logging(self.paths.logs_dir)
-        self.train()
-
-    def dbgdt(self, tensor, name):
-        # Debug tensor
-        if self.cfg.debug:
-            self.dbgd += [
-                tf.cond(tf.math.reduce_any((tf.math.is_nan(tensor))), lambda: tf.print("NaN in disc tensor", name),
-                        lambda: tf.constant(False))
-            ]
-
-    def dbggt(self, tensor, name):
-        # Debug tensor
-        if self.cfg.debug:
-            self.dbgg += [
-                tf.cond(tf.math.reduce_any((tf.math.is_nan(tensor))), lambda: tf.print("NaN in gen tensor", name),
-                        lambda: tf.constant(False))
-            ]
-
-    def setup_datasets(self, rgb_path, polar_path):
-        iter_a = from_images.iterator(rgb_path, self.cfg.dataset_size, self.cfg.batch_size, self.cfg.rgb_channels,
-                                      self.cfg.image_size)
-        iter_b = from_images.iterator(polar_path, self.cfg.dataset_size, self.cfg.batch_size, self.cfg.polar_channels,
-                                      self.cfg.image_size)
+    def setup_datasets(self):
+        iter_a = from_image_files.iterator(self.paths.dataA_path, self.cfg.dataset_size, self.cfg.batch_size, self.cfg.dataA_channels,
+                                           self.cfg.image_size)
+        iter_b = from_image_files.iterator(self.paths.dataB_path, self.cfg.dataset_size, self.cfg.batch_size,
+                                           self.cfg.dataB_channels,
+                                           self.cfg.image_size)
 
         self.sess.run(iter_a.initializer)
         self.sess.run(iter_b.initializer)
 
         self.inputA = iter_a.get_next()
         self.inputB = iter_b.get_next()
-
-        if self.cfg.debug:
-            self.dbgdt(self.inputA, "InputA")
-            self.dbgdt(self.inputB, "InputB")
-
-            self.dbggt(self.inputA, "InputA")
-            self.dbggt(self.inputB, "InputB")
 
     def build_models(self):
         # A: RGB, B: Pol
@@ -116,7 +54,7 @@ class CycleGANBase(AbstractModel):
                                      initial_value=np.ones((self.cfg.pool_size,
                                                             self.cfg.image_size,
                                                             self.cfg.image_size,
-                                                            self.cfg.rgb_channels)))
+                                                            self.cfg.dataA_channels)))
 
         self.out_gA = self.genA.output
         self.out_dA = self.discA.output
@@ -131,7 +69,7 @@ class CycleGANBase(AbstractModel):
                                      initial_value=np.zeros((self.cfg.pool_size,
                                                              self.cfg.image_size,
                                                              self.cfg.image_size,
-                                                             self.cfg.polar_channels)))
+                                                             self.cfg.dataB_channels)))
 
         self.out_gB = self.genB.output
         self.out_dB = self.discB.output
@@ -155,25 +93,6 @@ class CycleGANBase(AbstractModel):
                 self.ganB = self.discB(from_pool(self.poolB, self.out_gB, self.cfg.pool_size, self.cfg.batch_size))
             self.poolB_update = update_pool(self.poolB, self.out_gB, self.cfg.pool_size, self.cfg.batch_size)
 
-        if self.cfg.debug:
-            self.dbggt(self.out_gA, "out_GA")
-            self.dbggt(self.out_gB, "out_GB")
-            self.dbggt(self.out_dA, "out_DA")
-            self.dbggt(self.out_dB, "out_DB")
-
-            self.dbgdt(self.out_gA, "out_GA")
-            self.dbgdt(self.out_gB, "out_GB")
-            self.dbgdt(self.out_dA, "out_DA")
-            self.dbgdt(self.out_dB, "out_DB")
-
-            self.dbggt(self.cycA, "cycA")
-            self.dbggt(self.cycB, "cycB")
-
-            self.dbggt(self.ganA, "ganB")
-            self.dbggt(self.ganB, "ganA")
-            self.dbgdt(self.ganA, "ganB")
-            self.dbgdt(self.ganB, "ganA")
-
     def create_objectives(self):
         # Objectives
         with tf.device(self.device_0):
@@ -196,19 +115,6 @@ class CycleGANBase(AbstractModel):
             with tf.name_scope("dB_objective"):
                 self.dB_obj = (tf.reduce_mean(self.ganB ** 2) + tf.reduce_mean((self.discB.output - 1) ** 2)) / 2
 
-            if self.cfg.debug:
-                self.dbggt(self.ganA_obj, "ganA_obj")
-                self.dbggt(self.ganB_obj, "ganB_obj")
-                self.dbgdt(self.ganA_obj, "ganA_obj")
-                self.dbgdt(self.ganB_obj, "ganB_obj")
-
-                self.dbggt(self.gA_obj, "gA_obj")
-                self.dbggt(self.gB_obj, "gB_obj")
-                self.dbgdt(self.dA_obj, "dA_obj")
-                self.dbgdt(self.dB_obj, "dB_obj")
-                self.dbggt(self.cycA_obj, "cycA_obj")
-                self.dbggt(self.cycB_obj, "cycB_obj")
-
     def create_optimizers(self):
         lr = tf.Variable(self.cfg.learning_rate)
         self.decayed_lr = tf.compat.v1.train.polynomial_decay(
@@ -228,7 +134,7 @@ class CycleGANBase(AbstractModel):
         self.sess.run(tf.compat.v1.variables_initializer([lr]))
         self.sess.run(tf.compat.v1.variables_initializer(optimizer.variables()))
 
-    def setup_logging(self, logs_dir):
+    def setup_logging(self):
         # Logging images and weight histograms
         self.summaries = tf.compat.v1.summary.merge([
             tf.compat.v1.summary.scalar("Cyclic_recoA", self.cycA_obj),
@@ -250,8 +156,45 @@ class CycleGANBase(AbstractModel):
 
         ])
 
+        if self.cfg.debug:
+            self.__dbggt(self.out_gA, "out_GA")
+            self.__dbggt(self.out_gB, "out_GB")
+            self.__dbggt(self.out_dA, "out_DA")
+            self.__dbggt(self.out_dB, "out_DB")
+
+            self.__dbgdt(self.out_gA, "out_GA")
+            self.__dbgdt(self.out_gB, "out_GB")
+            self.__dbgdt(self.out_dA, "out_DA")
+            self.__dbgdt(self.out_dB, "out_DB")
+
+            self.__dbggt(self.cycA, "cycA")
+            self.__dbggt(self.cycB, "cycB")
+
+            self.__dbggt(self.ganA, "ganB")
+            self.__dbggt(self.ganB, "ganA")
+            self.__dbgdt(self.ganA, "ganB")
+            self.__dbgdt(self.ganB, "ganA")
+
+            self.__dbggt(self.ganA_obj, "ganA_obj")
+            self.__dbggt(self.ganB_obj, "ganB_obj")
+            self.__dbgdt(self.ganA_obj, "ganA_obj")
+            self.__dbgdt(self.ganB_obj, "ganB_obj")
+
+            self.__dbggt(self.gA_obj, "gA_obj")
+            self.__dbggt(self.gB_obj, "gB_obj")
+            self.__dbgdt(self.dA_obj, "dA_obj")
+            self.__dbgdt(self.dB_obj, "dB_obj")
+            self.__dbggt(self.cycA_obj, "cycA_obj")
+            self.__dbggt(self.cycB_obj, "cycB_obj")
+
+            self.__dbgdt(self.inputA, "InputA")
+            self.__dbgdt(self.inputB, "InputB")
+
+            self.__dbggt(self.inputA, "InputA")
+            self.__dbggt(self.inputB, "InputB")
+
         self.writer = tf.compat.v1.summary.FileWriter(
-            logs_dir + os.sep + self.cfg.name, tf.compat.v1.get_default_graph())
+            self.paths.logs_dir + os.sep + self.cfg.name, tf.compat.v1.get_default_graph())
 
         self.writer.flush()
 
@@ -282,9 +225,6 @@ class CycleGANBase(AbstractModel):
 
         # Run end
         self.writer.close()
-
-    def reset_session(self):
-        tf.compat.v1.reset_default_graph()
 
     def resume_models(self, resume, epoch):
         with tf.device(self.device_0):

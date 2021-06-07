@@ -1,9 +1,16 @@
 import tensorflow as tf
 
+from filesystem.paths import CycleGANPaths
 from models.polar.polar_cycle import PolarCycle
+from utils.base_configs.polarcycle_config import PolarCycleConfig
 
 
 class PolarCycleConicMax(PolarCycle):
+    def __init__(self, cfg: PolarCycleConfig, paths: CycleGANPaths, resume=None, epoch=0):
+        super(PolarCycleConicMax, self).__init__(cfg, paths, resume, epoch)
+        self.cfg = cfg
+        self.paths = paths
+
     def create_objectives(self):
         super(PolarCycleConicMax, self).create_objectives()
 
@@ -17,4 +24,4 @@ class PolarCycleConicMax(PolarCycle):
 
     def setup_logging(self, logs_dir):
         super(PolarCycleConicMax, self).setup_logging(logs_dir)
-        self.summaries = tf.summary.merge([self.summaries, tf.summary.scalar("Conic_dist", self.conic_dist)])
+        self.summaries = tf.compat.v1.summary.merge([self.summaries, tf.summary.scalar("Conic_dist", self.conic_dist)])

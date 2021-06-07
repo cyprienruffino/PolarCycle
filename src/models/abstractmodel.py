@@ -1,12 +1,13 @@
-from utils.config import AbstractConfig
+from utils.base_configs.cyclegan_config import CycleGANConfig
+from filesystem.path import Paths
 
 
 class AbstractModel:
 
-    def __init__(self, cfg: AbstractConfig, rgb_path, polar_path, logs_dir, checkpoints_dir, resume=None, epoch=0):
+    def __init__(self, cfg: CycleGANConfig, paths: Paths, resume=None, epoch=0):
         raise NotImplementedError
 
-    def setup_datasets(self, rgb_path, polar_path):
+    def setup_datasets(self):
         raise NotImplementedError
 
     def build_models(self):
@@ -18,10 +19,7 @@ class AbstractModel:
     def create_optimizers(self):
         raise NotImplementedError
 
-    def setup_logging(self, logs_dir):
-        raise NotImplementedError
-
-    def setup_checkpoints(self, checkpoints_dir):
+    def setup_logging(self):
         raise NotImplementedError
 
     def checkpoint_models(self, epoch):
@@ -35,3 +33,7 @@ class AbstractModel:
 
     def reset_session(self):
         raise NotImplementedError
+
+    def resume_models(self, resume, epoch):
+        raise NotImplementedError
+

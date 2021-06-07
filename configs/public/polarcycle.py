@@ -2,12 +2,12 @@ import hashlib
 
 import numpy as np
 
-from utils.config import AbstractConfig
 from models.polar.conic_diff import PolarCycleConicDiff
 from networks import cyclegan_disc, cyclegan_gen_9
+from utils.base_configs.polarcycle_config import PolarCycleConfig
 
 
-class CustomConfig(AbstractConfig):
+class CustomConfig(PolarCycleConfig):
 
     def __init__(self, name):
         super().__init__(name)

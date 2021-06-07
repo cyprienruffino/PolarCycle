@@ -1,9 +1,16 @@
 import tensorflow as tf
 
+from filesystem.paths import CycleGANPaths
 from models.cyclegan_base import CycleGANBase
+from utils.base_configs.polarcycle_config import PolarCycleConfig
 
 
 class ConicDiff(CycleGANBase):
+    def __init__(self, cfg: PolarCycleConfig, paths: CycleGANPaths, resume=None, epoch=0):
+        super(ConicDiff, self).__init__(cfg, paths, resume, epoch)
+        self.cfg = cfg
+        self.paths = paths
+
     def build_S_I(self):
         self.x = (self.out_gB + 1) * 127.5
 
@@ -26,6 +33,6 @@ class ConicDiff(CycleGANBase):
         self.conic_dist = self.cfg.mu * conic_dist
         self.gB_obj += self.conic_dist
 
-    def setup_logging(self, logs_dir):
-        super(ConicDiff, self).setup_logging(logs_dir)
-        self.summaries = tf.summary.merge([self.summaries, tf.summary.scalar("Conic_dist", self.conic_dist)])
+    def setup_logging(self):
+        super(ConicDiff, self).setup_logging()
+        self.summaries = tf.compat.v1.summary.merge([self.summaries, tf.summary.scalar("Conic_dist", self.conic_dist)])

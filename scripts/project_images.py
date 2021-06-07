@@ -12,12 +12,12 @@ import cv2
 import progressbar
 import tensorflow as tf
 
-from data_processing import from_images
+from data_processing import from_image_files
 
 
 def main(input_path, output_path):
     size = len(list(filter(lambda x: ".png" in x, os.listdir(input_path))))
-    dataset = from_images.oneshot_iterator(input_path, size, 1, 4)
+    dataset = from_image_files.oneshot_iterator(input_path, size, 1, 4)
 
     with tf.Session() as sess:
         image_iter = dataset.get_next()

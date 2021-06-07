@@ -20,10 +20,10 @@ class PolarCycleProjectorDiff(PolarCycle):
         self.gB_obj += self.prox_dist
 
         if DEBUG:
-            self.dbggt(self.x, "## x")
-            self.dbggt(Ad, "## Ad matrix")
-            self.dbggt(S, "## S matrix")
-            self.dbggt(prox_dist, "prox_dist")
+            self.__dbggt(self.x, "## x")
+            self.__dbggt(Ad, "## Ad matrix")
+            self.__dbggt(S, "## S matrix")
+            self.__dbggt(prox_dist, "prox_dist")
 
     def setup_logging(self, logs_dir):
         super(PolarCycleProjectorDiff, self).setup_logging(logs_dir)

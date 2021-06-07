@@ -5,7 +5,7 @@ import cv2
 import progressbar
 import tensorflow as tf
 
-from data_processing.from_images import iterator_gen
+from data_processing.from_image_files import iterator_gen
 from layers import *
 from utils.postprocessing import revert_normalization
 

@@ -1,11 +1,7 @@
 import os
 
-import numpy as np
 import tensorflow as tf
 
-import imageio
-
-from ops.projector import projector
 from utils.config import loadconfig
 
 

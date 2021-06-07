@@ -2,8 +2,9 @@ import os
 import sys
 
 from models.abstractmodel import AbstractModel
-from utils.config import loadconfig, AbstractConfig
-from utils.paths import Paths
+from utils.base_configs.cyclegan_config import CycleGANConfig
+from utils.config import loadconfig
+from filesystem.paths import CycleGAN_Paths
 
 
 def main():
@@ -26,10 +27,10 @@ def main():
         resume_path = sys.argv[4]
         epoch = int(sys.argv[5])
 
-    paths = Paths(configpath, dataA_path, dataB_path, resume_path)
+    paths = CycleGAN_Paths(configpath, dataA_path, dataB_path, resume_path)
 
     for run in paths.list_configs():
-        cfg: AbstractConfig = loadconfig(run)
+        cfg: CycleGANConfig = loadconfig(run)
         model: AbstractModel = cfg.model(cfg, paths, resume_path, epoch)
 
         model.train()

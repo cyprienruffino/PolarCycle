@@ -3,10 +3,8 @@ import shutil
 
 
 class Paths:
-    def __init__(self, configpath: str, dataA_path: str, dataB_path: str, resume_path: str = None):
-        self.resume_path: str = resume_path
-        self.dataB_path: str = dataB_path
-        self.dataA_path: str = dataA_path
+    def __init__(self, configpath: str = None, resume_path: str = None):
+        self.resume_path = resume_path
         self.configpath: str = configpath
 
         self.name: str = self.configpath.split('/')[-1].replace('.py', '')
@@ -21,7 +19,7 @@ class Paths:
         if self.resume_path is None:
             os.mkdir(os.path.join("runs", self.name))
             os.mkdir(self.checkpoints_dir)
-            shutil.copy2(self.configpath, os.path.join("runs", self.name, "config.py"))
+            shutil.copy2(self.configpath, os.path.join("runs", self.name, "cyclegan_config.py"))
 
     def list_configs(self):
         if os.path.isfile(self.configpath):
