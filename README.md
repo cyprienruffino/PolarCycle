@@ -16,13 +16,13 @@ See polarcycle_config.py and vanilla_cyclegan_config.py
 ## Usage 
 ### Training the models from scratch
 ```shell
-python src/train_polarcycle.py config_file rgb_path polar_path
+python -m deeplauncher --config_path config_file --datasets-paths rgb_path polar_path
 ```
 Takes around two days to train on 2 NVidia GTX1080Ti for the 2485 images datasets. 
 
 ### Resuming training
 ```shell
-python src/train_polarcycle.py config_file rgb_path polar_path path_to_checkpoints epoch
+python -m deeplauncher --config_path config_file --epoch epoch --resume_path --datasets-paths rgb_path polar_path
 ```
 ### Generating samples
 ```shell

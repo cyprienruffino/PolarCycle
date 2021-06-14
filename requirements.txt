@@ -6,3 +6,4 @@ setuptools
 progressbar2
 imageio
 tensorflow-addons
+deeplauncher
