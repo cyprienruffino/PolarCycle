@@ -1,7 +1,5 @@
 import warnings
 
-import ops
-
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 
@@ -12,8 +10,8 @@ import cv2
 import progressbar
 import tensorflow as tf
 
-from data_processing import from_image_files
-
+from deeplauncher.data_processing import from_image_files
+from ops.projector import projector
 
 def main(input_path, output_path):
     size = len(list(filter(lambda x: ".png" in x, os.listdir(input_path))))
@@ -21,7 +19,7 @@ def main(input_path, output_path):
 
     with tf.Session() as sess:
         image_iter = dataset.get_next()
-        projector = ops.projector.projector(image_iter)
+        projector = projector(image_iter)
         sess.run(tf.compat.v1.initialize_all_variables())
         for i in progressbar.progressbar(range(size)):
             projected = sess.run(projector)

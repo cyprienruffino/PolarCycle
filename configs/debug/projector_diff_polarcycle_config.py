@@ -2,9 +2,9 @@ import hashlib
 
 import numpy as np
 
-from networks import cyclegan_disc, cyclegan_gen_9
-from utils.base_configs.cyclegan_config import CycleGANConfig
-from networks.PolarCycleProjectorDiff import PolarCycleProjectorDiff
+from src.networks import cyclegan_gen_9, cyclegan_disc
+from src.base_configs import CycleGANConfig
+from src.models.conic_proximal import PolarCycleProjectorDiff
 
 
 class CustomConfig(CycleGANConfig):
@@ -22,8 +22,8 @@ class CustomConfig(CycleGANConfig):
         self.model = PolarCycleProjectorDiff
         self.batch_size = 1
         self.epochs = 400
-        self.rgb_channels = 3
-        self.polar_channels = 4
+        self.dataA_channels = 3
+        self.dataB_channels = 4
         self.dataset_size = 2480
         self.image_size = 200
         self.cyc_factor = 10

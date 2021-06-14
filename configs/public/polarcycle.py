@@ -2,9 +2,10 @@ import hashlib
 
 import numpy as np
 
-from models.polar.conic_diff import PolarCycleConicDiff
-from networks import cyclegan_disc, cyclegan_gen_9
-from utils.base_configs.polarcycle_config import PolarCycleConfig
+from deeplauncher.executors.gpu import GPUExecutor
+from models.conic_diff import PolarCycleConicDiff
+from networks import cyclegan_gen_9, cyclegan_disc
+from base_configs.polarcycle_config import PolarCycleConfig
 
 
 class CustomConfig(PolarCycleConfig):
@@ -13,18 +14,19 @@ class CustomConfig(PolarCycleConfig):
         super().__init__(name)
 
         # Run metadata
-        self.num_gpu = 1
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
             10 ** 8)
         self.debug = True
+        self.num_gpu = 2
 
         # Training settings
         self.model = PolarCycleConicDiff
+        self.executor = GPUExecutor
         self.batch_size = 1
         self.epochs = 400
-        self.rgb_channels = 3
-        self.polar_channels = 4
+        self.dataA_channels = 3
+        self.dataB_channels = 4
         self.dataset_size = 2485
         self.image_size = 200
         self.cyc_factor = 10

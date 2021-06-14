@@ -2,9 +2,9 @@ import hashlib
 
 import numpy as np
 
-from networks import cyclegan_disc, cyclegan_gen_9
-from utils.base_configs.cyclegan_config import CycleGANConfig
-from networks.PolarCycleConicDiff import PolarCycleConicDiff
+from src.networks import cyclegan_gen_9, cyclegan_disc
+from src.base_configs import CycleGANConfig
+from src.models.conic_diff import PolarCycleConicDiff
 
 
 class CustomConfig(CycleGANConfig):

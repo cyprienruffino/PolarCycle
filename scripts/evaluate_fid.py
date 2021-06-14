@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -52,13 +53,13 @@ def create_fid_func(model_path, sess, nb_data, lays_cut=1):
 
     def _fid(real, fake, batch_size=8):
         acts_real_val = []
-        print("Computing activations on real data")
+        logging.info("Computing activations on real data")
         for X in progressbar.ProgressBar()(range(0, len(real), batch_size)):
             if len(real[X:X + batch_size]) == batch_size:
                 acts_real_val.append(np.reshape(fid_model.predict(real[X:X + batch_size]), (batch_size, -1)))
 
         acts_fake_val = []
-        print("Computing activations on fake data")
+        logging.info("Computing activations on fake data")
         for X in progressbar.ProgressBar()(range(0, len(fake), batch_size)):
             if len(fake[X:X + batch_size]) == batch_size:
                 acts_fake_val.append(np.reshape(fid_model.predict(fake[X:X + batch_size]), (batch_size, -1)))
@@ -66,7 +67,7 @@ def create_fid_func(model_path, sess, nb_data, lays_cut=1):
         acts_fake_val = np.concatenate(acts_fake_val)
         acts_real_val = np.concatenate(acts_real_val)
 
-        print("Computing FID")
+        logging.info("Computing FID")
         return sess.run(fid, feed_dict={acts_real_pl: acts_real_val, acts_fake_pl: acts_fake_val})
 
     return _fid
@@ -86,7 +87,7 @@ def eval_test(fidmodel, reals, fakes, batch_size=10):
 
     with open("output.txt", "w") as f:
         f.write(str(fid))
-    print(fid)
+    logging.info(fid)
 
 
 if __name__ == "__main__":

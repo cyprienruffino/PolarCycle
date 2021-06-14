@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -12,7 +13,7 @@ def gen_exp(base_config, field, value_list, output_dir):
             to_replace = item.strip()
 
     if to_replace is None:
-        print(" Field not found")
+        logging.error(" Field not found")
         exit(0)
 
     field, _ = to_replace.split("=")

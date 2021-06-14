@@ -1,8 +1,10 @@
 import hashlib
 
-from networks import cyclegan_disc, cyclegan_gen_9
-from utils.base_configs.cyclegan_config import CycleGANConfig
-from models.cyclegan_base import CycleGANBase
+
+from src.executors.gpu import GPUExecutor
+from src.networks import cyclegan_gen_9, cyclegan_disc
+from src.base_configs import CycleGANConfig
+from src.models.cyclegan_base import CycleGANBase
 
 
 class CustomConfig(CycleGANConfig):
@@ -18,10 +20,11 @@ class CustomConfig(CycleGANConfig):
 
         # Training settings
         self.model = CycleGANBase
+        self.executor = GPUExecutor
         self.batch_size = 1
         self.epochs = 400
-        self.rgb_channels = 3
-        self.polar_channels = 4
+        self.dataA_channels = 3
+        self.dataB_channels = 4
         self.dataset_size = 2485
         self.image_size = 200
         self.cyc_factor = 10
