@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ops.norm import norm
+from src.ops import norm
 
 
 def projector(Sd, var):

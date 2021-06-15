@@ -26,7 +26,7 @@ python -m deeplauncher --config_path config_file --epoch epoch --resume_path --d
 ```
 ### Generating samples
 ```shell
-python src/generate_samples.py checkpoint_path files_path output_path
+python scripts/generate_samples.py checkpoint_path files_path output_path
 ```
 ### Evaluating FID
 Needs [keras_retinanet](https://github.com/fizyr/keras-retinanet) to restore the model

@@ -11,7 +11,7 @@ import progressbar
 import tensorflow as tf
 
 from deeplauncher.data_processing import from_image_files
-from ops.projector import projector
+
 
 def main(input_path, output_path):
     size = len(list(filter(lambda x: ".png" in x, os.listdir(input_path))))

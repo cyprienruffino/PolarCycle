@@ -3,8 +3,6 @@ import sys
 
 import cv2
 import progressbar
-import tensorflow as tf
-
 from deeplauncher.data_processing.from_image_files import iterator_gen
 from deeplauncher.layers import *
 from deeplauncher.utils.postprocessing import revert_normalization
