@@ -6,9 +6,8 @@ from deeplauncher.filesystem.path import Paths
 
 from deeplauncher.models.abstractmodel import AbstractModel
 from base_configs.cyclegan_config import CycleGANConfig
-from deeplauncher.data_processing import from_image_files
 from deeplauncher.utils.log import custom_bar, detect_nan
-from utils.pool import from_pool, update_pool
+from src.utils.pool import from_pool, update_pool
 
 
 class CycleGANBase(AbstractModel):
@@ -35,11 +34,13 @@ class CycleGANBase(AbstractModel):
         ]
 
     def setup_datasets(self):
-        iter_a = from_image_files.iterator(self.paths.data_paths[0], self.cfg.dataset_size, self.cfg.batch_size, self.cfg.dataA_channels,
-                                           self.cfg.image_size)
-        iter_b = from_image_files.iterator(self.paths.data_paths[1], self.cfg.dataset_size, self.cfg.batch_size,
+        iter_a = tf.compat.v1.data.make_initializable_iterator(
+            self.cfg.dataloader(self.paths.data_paths[0], self.cfg.batch_size, self.cfg.dataA_channels,
+                                           self.cfg.image_size, self.cfg.crop_size).train().repeat())
+
+        iter_b = tf.compat.v1.data.make_initializable_iterator(self.cfg.dataloader(self.paths.data_paths[1], self.cfg.batch_size,
                                            self.cfg.dataB_channels,
-                                           self.cfg.image_size)
+                                           self.cfg.image_size, self.cfg.crop_size).train().repeat())
 
         self.sess.run(iter_a.initializer)
         self.sess.run(iter_b.initializer)
@@ -55,8 +56,8 @@ class CycleGANBase(AbstractModel):
 
             self.poolA = tf.Variable(trainable=False, dtype=tf.float32,
                                      initial_value=np.ones((self.cfg.pool_size,
-                                                            self.cfg.image_size,
-                                                            self.cfg.image_size,
+                                                            self.cfg.crop_size,
+                                                            self.cfg.crop_size,
                                                             self.cfg.dataA_channels)))
 
         self.out_gA = self.genA.output
@@ -70,8 +71,8 @@ class CycleGANBase(AbstractModel):
             self.discB = self.cfg.discB(self.inputB, **self.cfg.discB_args)
             self.poolB = tf.Variable(trainable=False, dtype=tf.float32,
                                      initial_value=np.zeros((self.cfg.pool_size,
-                                                             self.cfg.image_size,
-                                                             self.cfg.image_size,
+                                                             self.cfg.crop_size,
+                                                             self.cfg.crop_size,
                                                              self.cfg.dataB_channels)))
 
         self.out_gB = self.genB.output
@@ -232,7 +233,8 @@ class CycleGANBase(AbstractModel):
 
     def resume_models(self, resume, epoch):
         with tf.device(self.device_0):
-            self.genA.load_weights(os.path.join(resume, "genA_" + str(epoch) + ".hdf5"), by_name=False)
+            self.genA.load_weights(os.path.join(resume,
+                                                ), by_name=False)
             self.discA.load_weights(os.path.join(resume, "discA_" + str(epoch) + ".hdf5"), by_name=False)
 
         with tf.device(self.device_1):

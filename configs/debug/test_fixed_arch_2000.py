@@ -25,7 +25,8 @@ class CustomConfig(CycleGANConfig):
         self.rgb_channels = 3
         self.polar_channels = 4
         self.dataset_size = 1 # 1500
-        self.image_size = 200
+        self.image_size = 500
+        self.crop_size = 200
         self.cyc_factor = 10
         self.pool_size = 50
         self.calibration_matrix = 0.5 * np.array([[[1, 1, 0],

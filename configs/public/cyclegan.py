@@ -1,10 +1,12 @@
 import hashlib
 
+from dataloaders.bitmap import BitmapDataloader
+from deeplauncher.executors.gpu_v1 import GPUExecutorV1
 
-from src.executors.gpu import GPUExecutor
-from src.networks import cyclegan_gen_9, cyclegan_disc
-from src.base_configs import CycleGANConfig
-from src.models.cyclegan_base import CycleGANBase
+from base_configs.cyclegan_config import CycleGANConfig
+from models.cyclegan_base import CycleGANBase
+from networks import cyclegan_disc
+from networks import cyclegan_gen_9
 
 
 class CustomConfig(CycleGANConfig):
@@ -16,17 +18,19 @@ class CustomConfig(CycleGANConfig):
         self.num_gpu = 1
         self.name = name
         self.seed = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16) % (
-            10 ** 8)
+                10 ** 8)
 
         # Training settings
         self.model = CycleGANBase
-        self.executor = GPUExecutor
+        self.executor = GPUExecutorV1
+        self.dataloader = BitmapDataloader
         self.batch_size = 1
         self.epochs = 400
         self.dataA_channels = 3
         self.dataB_channels = 4
         self.dataset_size = 2485
-        self.image_size = 200
+        self.image_size = 500
+        self.crop_size = 200
         self.cyc_factor = 10
         self.pool_size = 50
         self.learning_rate = 0.0002

@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 from filesystem import CycleGANPaths
-from models import CycleGANBase
-from base_configs import PolarCycleConfig
+from src.models import CycleGANBase
+from src.base_configs import PolarCycleConfig
 
 
 class ConicDiff(CycleGANBase):

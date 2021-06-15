@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 from filesystem import  CycleGANPaths
-from models.polar_cycle import PolarCycle
-from base_configs import PolarCycleConfig
+from src.models import PolarCycle
+from src.base_configs import PolarCycleConfig
 
 
 class PolarCycleConicMax(PolarCycle):

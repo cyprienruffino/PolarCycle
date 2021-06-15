@@ -5,6 +5,7 @@ from tensorflow.python.keras import layers as kl
 from deeplauncher.layers import ResidualBlock
 from tensorflow_addons.layers import InstanceNormalization
 
+
 def create_network(inp, channels_out, name):
     with tf.name_scope(name):
         inp_lay = kl.Input(tensor=inp)

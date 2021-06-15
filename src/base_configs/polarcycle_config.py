@@ -1,4 +1,4 @@
-from base_configs.cyclegan_config import CycleGANConfig
+from src.base_configs import CycleGANConfig
 
 
 class PolarCycleConfig(CycleGANConfig):

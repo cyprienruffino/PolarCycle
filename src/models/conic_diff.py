@@ -1,8 +1,8 @@
 import tensorflow as tf
 from deeplauncher.filesystem.path import Paths
 
-from models.polar_cycle import PolarCycle
-from base_configs.polarcycle_config import PolarCycleConfig
+from src.models import PolarCycle
+from src.base_configs import PolarCycleConfig
 
 
 class PolarCycleConicDiff(PolarCycle):

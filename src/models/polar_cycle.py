@@ -1,12 +1,12 @@
 import tensorflow as tf
 from deeplauncher.filesystem.path import Paths
 
-from models.cyclegan_base import CycleGANBase
+from src.models import CycleGANBase
 from deeplauncher.ops.tools import to_256
 
 from tensorflow.python.framework import function
 
-from base_configs.polarcycle_config import PolarCycleConfig
+from src.base_configs import PolarCycleConfig
 
 
 @function.Defun(tf.float32, tf.float32)

@@ -1,9 +1,9 @@
 import tensorflow as tf
 
 from filesystem import CycleGANPaths
-from models.polar_cycle import PolarCycle
-from ops import projector
-from base_configs import PolarCycleConfig
+from src.models import PolarCycle
+from src.ops import projector
+from src.base_configs import PolarCycleConfig
 
 DEBUG = True
 
