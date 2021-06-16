@@ -44,4 +44,5 @@ python scripts/evaluate_fid.py fid_model real_imgs fake_imgs
 - tensorflow >= 1.10
 - python-opencv
 - progressbar2
+- [deeplauncher](https://github.com/cyprienruffino/deeplauncher)
 - [keras_retinanet](https://github.com/fizyr/keras-retinanet) (For computing the FID only)
